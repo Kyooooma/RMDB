@@ -12,7 +12,7 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
-#include <string>
+#include <cstring>
 
 #define MAX_MEM_BUFFER_SIZE 8192
 #define PORT_DEFAULT 8765
