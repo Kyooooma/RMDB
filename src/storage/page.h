@@ -16,7 +16,7 @@ See the Mulan PSL v2 for more details. */
  * @description: 存储层每个Page的id的声明
  */
 struct PageId {
-    int fd;  //  Page所在的磁盘文件开启后的文件描述符, 来定位打开的文件在内存中的位置
+    int fd{};  //  Page所在的磁盘文件开启后的文件描述符, 来定位打开的文件在内存中的位置
     page_id_t page_no = INVALID_PAGE_ID;
 
     friend bool operator==(const PageId &x, const PageId &y) { return x.fd == y.fd && x.page_no == y.page_no; }
