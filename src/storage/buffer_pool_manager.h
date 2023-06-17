@@ -37,11 +37,11 @@ class BufferPoolManager {
     BufferPoolManager(size_t pool_size, DiskManager *disk_manager)
         : pool_size_(pool_size), disk_manager_(disk_manager) {
         // 为buffer pool分配一块连续的内存空间
-        pages_ = new Page[pool_size_];
+        pages_ = new Page[pool_size_]{};
         // 可以被Replacer改变
-        if (REPLACER_TYPE.compare("LRU"))
+        if (REPLACER_TYPE == "LRU")
             replacer_ = new LRUReplacer(pool_size_);
-        else if (REPLACER_TYPE.compare("CLOCK"))
+        else if (REPLACER_TYPE =="CLOCK")
             replacer_ = new LRUReplacer(pool_size_);
         else {
             replacer_ = new LRUReplacer(pool_size_);
