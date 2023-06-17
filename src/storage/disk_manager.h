@@ -10,9 +10,9 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include <fcntl.h>     
-#include <sys/stat.h>  
-#include <unistd.h>    
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <atomic>
 #include <fstream>
@@ -21,13 +21,13 @@ See the Mulan PSL v2 for more details. */
 #include <unordered_map>
 
 #include "common/config.h"
-#include "errors.h"  
+#include "errors.h"
 
 /**
  * @description: DiskManager的作用主要是根据上层的需要对磁盘文件进行操作
  */
 class DiskManager {
-   public:
+public:
     explicit DiskManager();
 
     ~DiskManager() = default;
@@ -89,7 +89,7 @@ class DiskManager {
 
     static constexpr int MAX_FD = 8192;
 
-   private:
+private:
     // 文件打开列表，用于记录文件是否被打开
     std::unordered_map<std::string, int> path2fd_;  //<Page文件磁盘路径,Page fd>哈希表
     std::unordered_map<int, std::string> fd2path_;  //<Page fd,Page文件磁盘路径>哈希表
