@@ -131,7 +131,7 @@ bool BufferPoolManager::flush_page(PageId page_id) {
     Page *page = pages_ + page_table_[page_id];
     if (page->get_page_id().page_no != INVALID_PAGE_ID) {
         disk_manager_->write_page(page->id_.fd, page->id_.page_no, page->data_, PAGE_SIZE);
-        page->is_dirty_ = false;
+//        page->is_dirty_ = false;
         return true;
     }
     return false;
@@ -154,19 +154,7 @@ Page *BufferPoolManager::new_page(PageId *page_id) {
     if (!ok || fid == -1) return nullptr;
     Page *page = pages_ + (fid);
     page_id->page_no = disk_manager_->allocate_page(page_id->fd);
-//    update_page(page, *page_id, fid);
-    // 尝试不更新is_dirty
-    if(page->id_.page_no != INVALID_PAGE_ID){
-        disk_manager_->write_page(page->id_.fd, page->id_.page_no, page->data_, PAGE_SIZE);
-    }
-    PageId old = page->id_;
-    if (page_table_.count(old)) {
-        page_table_.erase(old);
-    }
-    page_table_[*page_id] = fid;
-    page->reset_memory();
-    page->id_ = *page_id;
-
+    update_page(page, *page_id, fid);
     replacer_->pin(fid);
     page->pin_count_ = 1;
     return page;
@@ -186,10 +174,10 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     frame_id_t fid = page_table_[page_id];
     Page *page = pages_ + fid;
     if (page->pin_count_ != 0) return false;
-//    if (page->is_dirty()) {
-//        disk_manager_->write_page(page->id_.fd, page->id_.page_no, page->data_, PAGE_SIZE);
-//        page->is_dirty_ = false;
-//    }
+    if (page->is_dirty()) {
+        disk_manager_->write_page(page->id_.fd, page->id_.page_no, page->data_, PAGE_SIZE);
+        page->is_dirty_ = false;
+    }
     page_table_.erase(page_id);
     page->reset_memory();
     free_list_.push_back(fid);
