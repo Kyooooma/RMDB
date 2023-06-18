@@ -174,10 +174,10 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     frame_id_t fid = page_table_[page_id];
     Page *page = pages_ + fid;
     if (page->pin_count_ != 0) return false;
-    if (page->is_dirty()) {
-        disk_manager_->write_page(page->id_.fd, page->id_.page_no, page->data_, PAGE_SIZE);
-        page->is_dirty_ = false;
-    }
+//    if (page->is_dirty()) {
+//        disk_manager_->write_page(page->id_.fd, page->id_.page_no, page->data_, PAGE_SIZE);
+//        page->is_dirty_ = false;
+//    }
     page_table_.erase(page_id);
     page->reset_memory();
     free_list_.push_back(fid);
@@ -194,7 +194,7 @@ void BufferPoolManager::flush_all_pages(int fd) {
         Page *page = pages_ + i;
         if (page->id_.fd == fd && page->id_.page_no != INVALID_PAGE_ID) {
             disk_manager_->write_page(fd, page->id_.page_no, page->data_, PAGE_SIZE);
-            page->is_dirty_ = false;
+//            page->is_dirty_ = false;
         }
     }
 }
