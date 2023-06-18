@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/buffer_pool_manager.h"
 
 constexpr int RM_NO_PAGE = -1;
+constexpr int RM_NO_SLOT = -1;
 constexpr int RM_FILE_HDR_PAGE = 0;
 constexpr int RM_FIRST_RECORD_PAGE = 1;
 constexpr int RM_MAX_RECORD_SIZE = 512;
@@ -35,20 +36,20 @@ struct RmPageHdr {
 
 /* 表中的记录 */
 struct RmRecord {
-    char* data;  // 记录的数据
+    char *data;  // 记录的数据
     int size;    // 记录的大小
     bool allocated_ = false;    // 是否已经为数据分配空间
 
     RmRecord() = default;
 
-    RmRecord(const RmRecord& other) {
+    RmRecord(const RmRecord &other) {
         size = other.size;
         data = new char[size];
         memcpy(data, other.data, size);
         allocated_ = true;
     };
 
-    RmRecord &operator=(const RmRecord& other) {
+    RmRecord &operator=(const RmRecord &other) {
         size = other.size;
         data = new char[size];
         memcpy(data, other.data, size);
@@ -62,20 +63,20 @@ struct RmRecord {
         allocated_ = true;
     }
 
-    RmRecord(int size_, char* data_) {
+    RmRecord(int size_, char *data_) {
         size = size_;
         data = new char[size_];
         memcpy(data, data_, size_);
         allocated_ = true;
     }
 
-    void SetData(char* data_) {
+    void SetData(char *data_) {
         memcpy(data, data_, size);
     }
 
-    void Deserialize(const char* data_) {
-        size = *reinterpret_cast<const int*>(data_);
-        if(allocated_) {
+    void Deserialize(const char *data_) {
+        size = *reinterpret_cast<const int *>(data_);
+        if (allocated_) {
             delete[] data;
         }
         data = new char[size];
@@ -83,7 +84,7 @@ struct RmRecord {
     }
 
     ~RmRecord() {
-        if(allocated_) {
+        if (allocated_) {
             delete[] data;
         }
         allocated_ = false;
