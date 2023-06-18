@@ -109,11 +109,7 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
     Page *P = pages_ + fid;
     if (P->pin_count_ <= 0) return false;
     P->pin_count_--;
-    if (P->is_dirty()) {
-        disk_manager_->write_page(P->id_.fd, P->id_.page_no, P->data_, PAGE_SIZE);
-        P->is_dirty_ = false;
-    }
-    P->is_dirty_ = is_dirty;
+    P->is_dirty_ |= is_dirty;
     if (P->pin_count_ == 0) {
         replacer_->unpin(fid);
     }
