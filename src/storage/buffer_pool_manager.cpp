@@ -79,7 +79,9 @@ Page *BufferPoolManager::fetch_page(PageId page_id) {
     bool ok = find_victim_page(&fid);
     if (!ok || fid == -1) return nullptr;
     update_page(&pages_[fid], page_id, fid);
-    disk_manager_->read_page(page_id.fd, page_id.page_no, pages_[fid].data_, PAGE_SIZE);
+    if(page_id.page_no != INVALID_PAGE_ID){
+        disk_manager_->read_page(page_id.fd, page_id.page_no, pages_[fid].data_, PAGE_SIZE);
+    }
     pages_[fid].pin_count_ = 1;
     replacer_->pin(fid);
     return &pages_[fid];
@@ -107,6 +109,10 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
     Page *P = pages_ + fid;
     if (P->pin_count_ <= 0) return false;
     P->pin_count_--;
+    if (P->is_dirty()) {
+        disk_manager_->write_page(P->id_.fd, P->id_.page_no, P->data_, PAGE_SIZE);
+        P->is_dirty_ = false;
+    }
     P->is_dirty_ = is_dirty;
     if (P->pin_count_ == 0) {
         replacer_->unpin(fid);
@@ -131,7 +137,7 @@ bool BufferPoolManager::flush_page(PageId page_id) {
     Page *page = pages_ + page_table_[page_id];
     if (page->get_page_id().page_no != INVALID_PAGE_ID) {
         disk_manager_->write_page(page->id_.fd, page->id_.page_no, page->data_, PAGE_SIZE);
-//        page->is_dirty_ = false;
+        page->is_dirty_ = false;
         return true;
     }
     return false;
@@ -194,7 +200,7 @@ void BufferPoolManager::flush_all_pages(int fd) {
         Page *page = pages_ + i;
         if (page->id_.fd == fd && page->id_.page_no != INVALID_PAGE_ID) {
             disk_manager_->write_page(fd, page->id_.page_no, page->data_, PAGE_SIZE);
-//            page->is_dirty_ = false;
+            page->is_dirty_ = false;
         }
     }
 }
