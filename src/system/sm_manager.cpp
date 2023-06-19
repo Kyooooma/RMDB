@@ -93,6 +93,9 @@ void SmManager::open_db(const std::string& db_name) {
     }
     std::ifstream ofs(DB_META_NAME);
     ofs >> db_;
+    for(auto [tab_name, tab_info] : db_.tabs_){
+        fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
+    }
 }
 
 /**
@@ -211,6 +214,8 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
     }
     rm_manager_->destroy_file(tab_name);
     db_.tabs_.erase(tab_name);
+
+    flush_meta();
 }
 
 /**
