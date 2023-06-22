@@ -9,6 +9,9 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #pragma once
+
+#include <utility>
+
 #include "execution_defs.h"
 #include "execution_manager.h"
 #include "executor_abstract.h"
@@ -16,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "system/sm.h"
 
 class UpdateExecutor : public AbstractExecutor {
-   private:
+private:
     TabMeta tab_;
     std::vector<Condition> conds_;
     RmFileHandle *fh_;
@@ -25,20 +28,39 @@ class UpdateExecutor : public AbstractExecutor {
     std::vector<SetClause> set_clauses_;
     SmManager *sm_manager_;
 
-   public:
+public:
     UpdateExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<SetClause> set_clauses,
                    std::vector<Condition> conds, std::vector<Rid> rids, Context *context) {
         sm_manager_ = sm_manager;
         tab_name_ = tab_name;
-        set_clauses_ = set_clauses;
+        set_clauses_ = std::move(set_clauses);
         tab_ = sm_manager_->db_.get_table(tab_name);
         fh_ = sm_manager_->fhs_.at(tab_name).get();
-        conds_ = conds;
-        rids_ = rids;
+        conds_ = std::move(conds);
+        rids_ = std::move(rids);
         context_ = context;
     }
+
     std::unique_ptr<RmRecord> Next() override {
-        
+        //构建mp
+        std::map<TabCol, ColMeta> mp;
+        for (const auto &i: set_clauses_) {
+            ColMeta col = *get_col(tab_.cols, i.lhs);
+            mp[i.lhs] = col;
+        }
+        for (auto rid: rids_) {
+            //查找记录
+            std::unique_ptr<RmRecord> rec = fh_->get_record(rid, context_);
+            for (const auto &i: set_clauses_) {
+                auto col = mp[i.lhs];
+                auto value = i.rhs;
+                value.init_raw(col.len);
+                //更新记录数据
+                memcpy(rec->data + col.offset, value.raw->data, col.len);
+            }
+            //更新记录
+            fh_->update_record(rid, rec->data, context_);
+        }
         return nullptr;
     }
 

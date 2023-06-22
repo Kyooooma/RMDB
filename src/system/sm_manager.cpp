@@ -111,10 +111,13 @@ void SmManager::flush_meta() {
  * @description: 关闭数据库并把数据落盘
  */
 void SmManager::close_db() {
+    flush_meta();
     for(auto & fh : fhs_){// 遍历表的打开列表
         rm_manager_->close_file(fh.second.get());
     }
-    flush_meta();
+    db_.name_.clear();
+    db_.tabs_.clear();
+    fhs_.clear();
     // 回到根目录
     if (chdir("..") < 0) {
         throw UnixError();
