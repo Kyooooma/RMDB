@@ -16,7 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "system/sm.h"
 
 class AbstractExecutor {
-   public:
+public:
     Rid _abstract_rid;
 
     Context *context_;
@@ -27,6 +27,7 @@ class AbstractExecutor {
 
     virtual const std::vector<ColMeta> &cols() const {
         std::vector<ColMeta> *_cols = nullptr;
+        throw RMDBError("怎么不重写cols的");
         return *_cols;
     };
 

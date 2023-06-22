@@ -21,7 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/common.h"
 
 class Query{
-    public:
+public:
     std::shared_ptr<ast::TreeNode> parse;
     // TODO jointree
     // where条件
@@ -56,5 +56,7 @@ private:
     void check_clause(const std::vector<std::string> &tab_names, std::vector<Condition> &conds);
     Value convert_sv_value(const std::shared_ptr<ast::Value> &sv_val);
     CompOp convert_sv_comp_op(ast::SvCompOp op);
+    void set_clause(const std::string& tab_name, const std::vector<std::shared_ptr<ast::SetClause>> &sv_conds,
+                    std::vector<SetClause> &conds);
 };
 

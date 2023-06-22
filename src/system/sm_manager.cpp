@@ -111,10 +111,13 @@ void SmManager::flush_meta() {
  * @description: 关闭数据库并把数据落盘
  */
 void SmManager::close_db() {
+    flush_meta();
     for(auto & fh : fhs_){// 遍历表的打开列表
         rm_manager_->close_file(fh.second.get());
     }
-    flush_meta();
+    db_.name_.clear();
+    db_.tabs_.clear();
+    fhs_.clear();
     // 回到根目录
     if (chdir("..") < 0) {
         throw UnixError();
@@ -181,11 +184,11 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
     tab.name = tab_name;
     for (auto &col_def : col_defs) {
         ColMeta col = {.tab_name = tab_name,
-                       .name = col_def.name,
-                       .type = col_def.type,
-                       .len = col_def.len,
-                       .offset = curr_offset,
-                       .index = false};
+                .name = col_def.name,
+                .type = col_def.type,
+                .len = col_def.len,
+                .offset = curr_offset,
+                .index = false};
         curr_offset += col_def.len;
         tab.cols.push_back(col);
     }
@@ -225,7 +228,7 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
  * @param {Context*} context
  */
 void SmManager::create_index(const std::string& tab_name, const std::vector<std::string>& col_names, Context* context) {
-    
+
 }
 
 /**
@@ -235,7 +238,7 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
  * @param {Context*} context
  */
 void SmManager::drop_index(const std::string& tab_name, const std::vector<std::string>& col_names, Context* context) {
-    
+
 }
 
 /**
@@ -245,5 +248,5 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<std::s
  * @param {Context*} context
  */
 void SmManager::drop_index(const std::string& tab_name, const std::vector<ColMeta>& cols, Context* context) {
-    
+
 }
