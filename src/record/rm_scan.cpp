@@ -19,7 +19,7 @@ RmScan::RmScan(const RmFileHandle *file_handle) : file_handle_(file_handle) {
     // Todo:
     // 初始化file_handle和rid（指向第一个存放了记录的位置）
     rid_ = {RM_FIRST_RECORD_PAGE, RM_NO_SLOT};
-    find();
+    next();
 }
 
 /**
@@ -28,7 +28,17 @@ RmScan::RmScan(const RmFileHandle *file_handle) : file_handle_(file_handle) {
 void RmScan::next() {
     // Todo:
     // 找到文件中下一个存放了记录的非空闲位置，用rid_来指向这个位置
-    find();
+    for (int page_no = rid_.page_no; page_no < file_handle_->file_hdr_.num_pages; page_no++) {
+        RmPageHandle rph = file_handle_->fetch_page_handle(page_no);
+        int max_n = file_handle_->file_hdr_.num_records_per_page;
+        int slot_no = Bitmap::next_bit(true, rph.bitmap, max_n, rid_.slot_no);
+        if (slot_no < max_n) {
+            rid_ = {page_no, slot_no};
+            return;
+        }
+        rid_.slot_no = RM_NO_SLOT;
+    }
+    rid_.page_no = RM_NO_PAGE;
 }
 
 /**
@@ -44,19 +54,4 @@ bool RmScan::is_end() const {
  */
 Rid RmScan::rid() const {
     return rid_;
-}
-
-void RmScan:: find(){
-    // 找到文件中下一个存放了记录的非空闲位置，用rid_来指向这个位置
-    for (int page_no = rid_.page_no; page_no < file_handle_->file_hdr_.num_pages; page_no++) {
-        RmPageHandle rph = file_handle_->fetch_page_handle(page_no);
-        int max_n = file_handle_->file_hdr_.num_records_per_page;
-        int slot_no = Bitmap::next_bit(true, rph.bitmap, max_n, rid_.slot_no);
-        if (slot_no < max_n) {
-            rid_ = {page_no, slot_no};
-            return;
-        }
-        rid_.slot_no = RM_NO_SLOT;
-    }
-    rid_.page_no = RM_NO_PAGE;
 }

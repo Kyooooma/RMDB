@@ -22,12 +22,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
     {
         // 处理表名
         query->tables = std::move(x->tabs);
-        // 检查表是否存在
-        for(const auto& table : query->tables){
-            if(!sm_manager_->db_.is_table(table)){
-                throw TableNotFoundError(table);
-            }
-        }
+        /** TODO: 检查表是否存在 */
 
         // 处理target list，再target list中添加上表名，例如 a.id
         for (auto &sv_sel_col : x->cols) {
@@ -53,11 +48,8 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         get_clause(x->conds, query->conds);
         check_clause(query->tables, query->conds);
     } else if (auto x = std::dynamic_pointer_cast<ast::UpdateStmt>(parse)) {
-        //处理set
-        set_clause(x->tab_name, x->set_clauses, query->set_clauses);
-        //处理where条件
-        get_clause(x->conds, query->conds);
-        check_clause({x->tab_name}, query->conds);
+        /** TODO: update*/
+
     } else if (auto x = std::dynamic_pointer_cast<ast::DeleteStmt>(parse)) {
         //处理where条件
         get_clause(x->conds, query->conds);
@@ -93,18 +85,7 @@ TabCol Analyze::check_column(const std::vector<ColMeta> &all_cols, TabCol target
         target.tab_name = tab_name;
     } else {
         /** TODO: Make sure target column exists */
-        int cnt = 0;
-        for (auto &col : all_cols) {
-            if (col.name == target.col_name) {
-                cnt++;
-                if(cnt > 1){
-                    throw AmbiguousColumnError(target.col_name);
-                }
-            }
-        }
-        if(!cnt){
-            throw ColumnNotFoundError(target.col_name);
-        }
+        
     }
     return target;
 }
@@ -134,16 +115,6 @@ void Analyze::get_clause(const std::vector<std::shared_ptr<ast::BinaryExpr>> &sv
     }
 }
 
-void Analyze::set_clause(const std::string& tab_name, const std::vector<std::shared_ptr<ast::SetClause>>& sv_conds, std::vector<SetClause> &conds) {
-    conds.clear();
-    for (auto &expr : sv_conds) {
-        SetClause cond;
-        cond.lhs = {.tab_name = tab_name, .col_name = expr->col_name};
-        cond.rhs = convert_sv_value(expr->val);
-        conds.push_back(cond);
-    }
-}
-
 void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vector<Condition> &conds) {
     // auto all_cols = get_all_cols(tab_names);
     std::vector<ColMeta> all_cols;
@@ -168,9 +139,7 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
             rhs_type = rhs_col->type;
         }
         if (lhs_type != rhs_type) {
-            if(lhs_type == TYPE_STRING || rhs_type == TYPE_STRING){
-                throw IncompatibleTypeError(coltype2str(lhs_type), coltype2str(rhs_type));
-            }
+            throw IncompatibleTypeError(coltype2str(lhs_type), coltype2str(rhs_type));
         }
     }
 }
