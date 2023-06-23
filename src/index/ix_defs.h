@@ -23,7 +23,7 @@ constexpr int IX_INIT_NUM_PAGES = 3;
 constexpr int IX_MAX_COL_LEN = 512;
 
 class IxFileHdr {
-public: 
+public:
     page_id_t first_free_page_no_;      // 文件中第一个空闲的磁盘页面的页面号
     int num_pages_;                     // 磁盘文件中页面的数量
     page_id_t root_page_;               // B+树根节点对应的页面号
@@ -43,11 +43,11 @@ public:
     }
 
     IxFileHdr(page_id_t first_free_page_no, int num_pages, page_id_t root_page, int col_num,
-                int col_tot_len, int btree_order, int keys_size, page_id_t first_leaf, page_id_t last_leaf)
-                : first_free_page_no_(first_free_page_no), num_pages_(num_pages), root_page_(root_page), col_num_(col_num),
-                col_tot_len_(col_tot_len), btree_order_(btree_order), keys_size_(keys_size), first_leaf_(first_leaf), last_leaf_(last_leaf) {
-                    tot_len_ = 0;
-                } 
+              int col_tot_len, int btree_order, int keys_size, page_id_t first_leaf, page_id_t last_leaf)
+            : first_free_page_no_(first_free_page_no), num_pages_(num_pages), root_page_(root_page), col_num_(col_num),
+              col_tot_len_(col_tot_len), btree_order_(btree_order), keys_size_(keys_size), first_leaf_(first_leaf), last_leaf_(last_leaf) {
+        tot_len_ = 0;
+    }
 
     void update_tot_len() {
         tot_len_ = 0;

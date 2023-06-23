@@ -16,7 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "system/sm.h"
 
 class AbstractExecutor {
-   public:
+public:
     Rid _abstract_rid;
 
     Context *context_;
@@ -27,6 +27,7 @@ class AbstractExecutor {
 
     virtual const std::vector<ColMeta> &cols() const {
         std::vector<ColMeta> *_cols = nullptr;
+        throw RMDBError("怎么不重写cols的");
         return *_cols;
     };
 
@@ -44,7 +45,7 @@ class AbstractExecutor {
 
     virtual ColMeta get_col_offset(const TabCol &target) { return ColMeta();};
 
-    std::vector<ColMeta>::const_iterator get_col(const std::vector<ColMeta> &rec_cols, const TabCol &target) {
+    static std::vector<ColMeta>::const_iterator get_col(const std::vector<ColMeta> &rec_cols, const TabCol &target) {
         auto pos = std::find_if(rec_cols.begin(), rec_cols.end(), [&](const ColMeta &col) {
             return col.tab_name == target.tab_name && col.name == target.col_name;
         });
@@ -52,5 +53,111 @@ class AbstractExecutor {
             throw ColumnNotFoundError(target.tab_name + '.' + target.col_name);
         }
         return pos;
+    }
+
+    /**
+     * @brief 类型转换
+     * @return Value
+     */
+    static Value get_Value(ColType p, const char *a) {
+        Value res;
+        switch (p) {
+            case TYPE_INT: {
+                int ia = *(int *) a;
+                res.set_int(ia);
+                break;
+            }
+            case TYPE_FLOAT: {
+                float fa = *(float *) a;
+                res.set_float(fa);
+                break;
+            }
+            default:
+                throw InternalError("Unexpected data type");
+        }
+        return res;
+    }
+
+    /**
+     * @brief 判断该记录是否满足where条件
+     * @return bool
+     */
+    static bool eval_cond(const std::vector<ColMeta> &rec_cols, const Condition &cond, const RmRecord *rec) {
+        auto lhs_col = get_col(rec_cols, cond.lhs_col);
+        char *lhs = rec->data + lhs_col->offset;
+        char *rhs;
+        ColType rhs_type, lhs_type = lhs_col->type;
+        if (cond.is_rhs_val) {
+            rhs_type = cond.rhs_val.type;
+            rhs = cond.rhs_val.raw->data;
+        } else {
+            // rhs is a column
+            auto rhs_col = get_col(rec_cols, cond.rhs_col);
+            rhs_type = rhs_col->type;
+            rhs = rec->data + rhs_col->offset;
+        }
+        int cmp;
+        if (rhs_type != lhs_type) {
+            Value ls = get_Value(lhs_type, lhs);
+            Value rs = get_Value(rhs_type, rhs);
+            cmp = dif_compare(ls, rs);
+        } else {
+            cmp = ix_compare(lhs, rhs, rhs_type, lhs_col->len);
+        }
+        std::cerr << cmp << '\n';
+        if (cond.op == OP_EQ) {
+            return cmp == 0;
+        } else if (cond.op == OP_NE) {
+            return cmp != 0;
+        } else if (cond.op == OP_LT) {
+            return cmp < 0;
+        } else if (cond.op == OP_GT) {
+            return cmp > 0;
+        } else if (cond.op == OP_LE) {
+            return cmp <= 0;
+        } else if (cond.op == OP_GE) {
+            return cmp >= 0;
+        } else {
+            throw InternalError("Unexpected op type");
+        }
+    }
+
+    bool eval_conds(const std::vector<ColMeta> &rec_cols, const std::vector<Condition> &conds, const RmRecord *rec) {
+        return std::all_of(conds.begin(), conds.end(),
+                           [&](const Condition &cond) { return eval_cond(rec_cols, cond, rec); });
+    }
+
+    static void convert(Value &a, Value &b) {
+        if (a.type == TYPE_FLOAT) {
+            if (b.type == TYPE_INT) {
+                b.set_float((float) b.int_val);
+                return;
+            }
+            throw InternalError("convert::Unexpected op type");
+        } else if (a.type == TYPE_INT) {
+            if (b.type == TYPE_FLOAT) {
+                a.set_float((float) a.int_val);
+                return;
+            }
+            throw InternalError("convert::Unexpected op type");
+        }
+    }
+
+    static inline int dif_compare(Value &pa, Value &pb) {
+        convert(pa, pb);
+        switch (pa.type) {
+            case TYPE_FLOAT:{
+                double va = pa.float_val;
+                double vb = pb.float_val;
+                return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
+            }
+            case TYPE_INT: {
+                int va = pa.int_val;
+                int vb = pb.int_val;
+                return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
+            }
+            default:
+                throw InternalError("Unexpected data type");
+        }
     }
 };
