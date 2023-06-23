@@ -41,6 +41,8 @@ public:
         context_ = context;
     }
 
+    std::string getType() override { return "UpdateExecutor"; };
+
     std::unique_ptr<RmRecord> Next() override {
         //构建mp
         std::map<TabCol, ColMeta> mp;

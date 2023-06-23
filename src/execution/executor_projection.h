@@ -9,6 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #pragma once
+
 #include "execution_defs.h"
 #include "execution_manager.h"
 #include "executor_abstract.h"
@@ -28,7 +29,7 @@ public:
 
         int curr_offset = 0;
         auto &prev_cols = prev_->cols();
-        for (auto &sel_col : sel_cols) {
+        for (auto &sel_col: sel_cols) {
             auto pos = get_col(prev_cols, sel_col);
             sel_idxs_.push_back(pos - prev_cols.begin());
             auto col = *pos;
@@ -37,6 +38,14 @@ public:
             cols_.push_back(col);
         }
         len_ = curr_offset;
+    }
+
+    std::string getType() override { return "ProjectionExecutor"; };
+
+    size_t tupleLen() const override { return len_; };
+
+    const std::vector<ColMeta> &cols() const override {
+        return cols_;
     }
 
     void beginTuple() override {
@@ -53,7 +62,7 @@ public:
         auto proj_rec = std::make_unique<RmRecord>(len_);
         auto &prev_cols = prev_->cols();// 列数据
         auto prev_rec = prev_->Next();// 具体记录
-        for(int i = 0; i < sel_idxs_.size(); i++){
+        for (int i = 0; i < sel_idxs_.size(); i++) {
             auto idx = sel_idxs_[i];// 投影列在子节点的下标
             auto col = cols_[i];// 投影列
             memcpy(proj_rec->data + col.offset, prev_rec->data + prev_cols[idx].offset, col.len);
@@ -65,7 +74,4 @@ public:
 
     Rid &rid() override { return _abstract_rid; }
 
-    virtual const std::vector<ColMeta> &cols() const override{
-        return cols_;
-    }
 };

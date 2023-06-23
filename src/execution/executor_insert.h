@@ -22,11 +22,11 @@ private:
     std::vector<Value> values_;     // 需要插入的数据
     RmFileHandle *fh_;              // 表的数据文件句柄
     std::string tab_name_;          // 表名称
-    Rid rid_;                       // 插入的位置，由于系统默认插入时不指定位置，因此当前rid_在插入后才赋值
+    Rid rid_{};                       // 插入的位置，由于系统默认插入时不指定位置，因此当前rid_在插入后才赋值
     SmManager *sm_manager_;
 
 public:
-    InsertExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<Value> values, Context *context) {
+    InsertExecutor(SmManager *sm_manager, const std::string &tab_name, const std::vector<Value>& values, Context *context) {
         sm_manager_ = sm_manager;
         tab_ = sm_manager_->db_.get_table(tab_name);
         values_ = values;
@@ -37,6 +37,8 @@ public:
         fh_ = sm_manager_->fhs_.at(tab_name).get();
         context_ = context;
     };
+
+    std::string getType() override { return "InsertExecutor"; };
 
     std::unique_ptr<RmRecord> Next() override {
         // Make record buffer

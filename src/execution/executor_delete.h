@@ -38,6 +38,8 @@ public:
         context_ = context;
     }
 
+    std::string getType() override { return "DeleteExecutor"; };
+
     std::unique_ptr<RmRecord> Next() override {
         for(auto rid : rids_){
             //tbd:: 删除索引

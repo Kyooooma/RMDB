@@ -95,7 +95,7 @@ TabCol Analyze::check_column(const std::vector<ColMeta> &all_cols, TabCol target
         /** TODO: Make sure target column exists */
         int cnt = 0;
         for (auto &col : all_cols) {
-            if (col.name == target.col_name) {
+            if (col.name == target.col_name && col.tab_name == target.tab_name) {
                 cnt++;
                 if(cnt > 1){
                     throw AmbiguousColumnError(target.col_name);
