@@ -36,8 +36,8 @@ white_space [ \t]+
 new_line "\r"|"\n"|"\r\n"
 sign "+"|"-"
 identifier {alpha}(_|{alpha}|{digit})*
-value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
+value_bigint {sign}?{digit}+
 value_string '[^']*'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 
@@ -77,6 +77,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "INT" { return INT; }
 "CHAR" { return CHAR; }
 "FLOAT" { return FLOAT; }
+"BIGINT" { return BIGINT; }
 "INDEX" { return INDEX; }
 "AND" { return AND; }
 "JOIN" {return JOIN;}
@@ -96,13 +97,13 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
     return IDENTIFIER;
 }
     /* literals */
-{value_int} {
-    yylval->sv_int = atoi(yytext);
-    return VALUE_INT;
-}
 {value_float} {
     yylval->sv_float = atof(yytext);
     return VALUE_FLOAT;
+}
+{value_bigint} {
+    yylval->sv_bigint = atoll(yytext);
+    return VALUE_BIGINT;
 }
 {value_string} {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);

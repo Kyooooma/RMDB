@@ -72,6 +72,11 @@ public:
                 res.set_float(fa);
                 break;
             }
+            case TYPE_BIGINT: {
+                long long ba = *(long long *) a;
+                res.set_bigint(ba);
+                break;
+            }
             default:
                 throw InternalError("Unexpected data type");
         }
@@ -133,8 +138,26 @@ public:
                 b.set_float((float) b.int_val);
                 return;
             }
+            if (b.type == TYPE_BIGINT) {
+                b.set_bigint((long long) b.bigint_val);
+                return;
+            }
             throw InternalError("convert::Unexpected op type");
         } else if (a.type == TYPE_INT) {
+            if (b.type == TYPE_FLOAT) {
+                a.set_float((float) a.int_val);
+                return;
+            }
+            if (b.type == TYPE_BIGINT) {
+                b.set_bigint((long long) b.bigint_val);
+                return;
+            }
+            throw InternalError("convert::Unexpected op type");
+        } else if (a.type == TYPE_BIGINT) {
+            if (b.type == TYPE_INT) {
+                b.set_float((float) b.int_val);
+                return;
+            }
             if (b.type == TYPE_FLOAT) {
                 a.set_float((float) a.int_val);
                 return;
@@ -154,6 +177,11 @@ public:
             case TYPE_INT: {
                 int va = pa.int_val;
                 int vb = pb.int_val;
+                return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
+            }
+            case TYPE_BIGINT: {
+                long long va = pa.bigint_val;
+                long long vb = pb.bigint_val;
                 return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
             }
             default:

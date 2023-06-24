@@ -19,7 +19,7 @@ enum JoinType {
 namespace ast {
 
 enum SvType {
-    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING
+    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BIGINT,
 };
 
 enum SvCompOp {
@@ -127,6 +127,12 @@ struct FloatLit : public Value {
     FloatLit(float val_) : val(val_) {}
 };
 
+struct BigintLit : public Value {
+    long long val;
+
+    BigintLit(long long val_) : val(val_) {}
+};
+
 struct StringLit : public Value {
     std::string val;
 
@@ -229,6 +235,7 @@ struct SelectStmt : public TreeNode {
 struct SemValue {
     int sv_int;
     float sv_float;
+    long long sv_bigint;
     std::string sv_str;
     OrderByDir sv_orderby_dir;
     std::vector<std::string> sv_strs;
