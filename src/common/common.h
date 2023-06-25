@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 #include <cstring>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 #include "defs.h"
 #include "record/rm_defs.h"
@@ -32,7 +33,7 @@ struct Value {
     ColType type;  // type of value
     union {
         int int_val;      // int value
-        float float_val;  // float value
+        double float_val;  // float value
         long long bigint_val; // bigint value
     };
     std::string str_val;  // string value
@@ -45,7 +46,7 @@ struct Value {
         int_val = int_val_;
     }
 
-    void set_float(float float_val_) {
+    void set_float(double float_val_) {
         type = TYPE_FLOAT;
         float_val = float_val_;
     }
@@ -72,8 +73,8 @@ struct Value {
             assert(len == sizeof(int));
             *(int *) (raw->data) = int_val;
         } else if (type == TYPE_FLOAT) {
-            assert(len == sizeof(float));
-            *(float *) (raw->data) = float_val;
+            assert(len == sizeof(double));
+            *(double *) (raw->data) = float_val;
         } else if (type == TYPE_BIGINT) {
             assert(len == sizeof(long long));
             *(long long *) (raw->data) = bigint_val;

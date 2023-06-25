@@ -95,7 +95,7 @@ public:
                 break;
             }
             case TYPE_FLOAT: {
-                float fa = *(float *) a;
+                double fa = *(double *) a;
                 res.set_float(fa);
                 break;
             }
@@ -111,6 +111,9 @@ public:
             }
             case TYPE_STRING:
                 std::string str = a;
+                for(int i = 0; i <= 5; i++) std::cout << int(a[i]) << ' ';
+                std::cout << "\nget_Value::";
+                std::cout << a << " " << strlen(a) << '\n' << str << " " << str.size() << "\n\n\n";
                 res.set_str(str);
                 break;
         }
@@ -125,19 +128,19 @@ public:
         auto lhs_col = get_col(rec_cols, cond.lhs_col);
         char *lhs = rec->data + lhs_col->offset;
         char *rhs;
-        ColType rhs_type, lhs_type = lhs_col->type;
+        ColType lhs_type = lhs_col->type;
+        Value rs;
         if (cond.is_rhs_val) {
-            rhs_type = cond.rhs_val.type;
-            rhs = cond.rhs_val.raw->data;
+            rs = cond.rhs_val;
         } else {
             // rhs is a column
             auto rhs_col = get_col(rec_cols, cond.rhs_col);
-            rhs_type = rhs_col->type;
+            ColType rhs_type = rhs_col->type;
             rhs = rec->data + rhs_col->offset;
+            rs = get_Value(rhs_type, rhs);
         }
         Value ls = get_Value(lhs_type, lhs);
-        Value rs = get_Value(rhs_type, rhs);
-        int cmp = val_compare(ls, rs);
+        int cmp = val_compare(ls, rs, lhs_col->len);
         std::cerr << cmp << '\n';
         if (cond.op == OP_EQ) {
             return cmp == 0;
@@ -170,16 +173,16 @@ public:
         if(a.type == b.type) return;
         if (a.type == TYPE_FLOAT) {
             if (b.type == TYPE_INT) {
-                b.set_float((float) b.int_val);
+                b.set_float((double) b.int_val);
                 return;
             }
             if (b.type == TYPE_BIGINT) {
-                b.set_float((float) b.bigint_val);
+                b.set_float((double) b.bigint_val);
                 return;
             }
         } else if (a.type == TYPE_INT) {
             if (b.type == TYPE_FLOAT) {
-                a.set_float((float) a.int_val);
+                a.set_float((double) a.int_val);
                 return;
             }
             if (b.type == TYPE_BIGINT) {
@@ -192,7 +195,7 @@ public:
                 return;
             }
             if (b.type == TYPE_FLOAT) {
-                a.set_float((float) a.int_val);
+                a.set_float((double) a.int_val);
                 return;
             }
         } else if(a.type == TYPE_DATETIME){
@@ -209,7 +212,7 @@ public:
         throw InternalError("convert::Unexpected value type");
     }
 
-    static inline int val_compare(Value &pa, Value &pb) {
+    static inline int val_compare(Value &pa, Value &pb, int len) {
         convert(pa, pb);
         switch (pa.type) {
             case TYPE_FLOAT:{
@@ -233,8 +236,8 @@ public:
                 return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
             }
             case TYPE_STRING: {
-                std::string va = pa.str_val;
-                std::string vb = pb.str_val;
+                std::string va = pa.str_val.substr(0, len);
+                std::string vb = pb.str_val.substr(0, len);
                 return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
             }
         }
