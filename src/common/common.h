@@ -33,9 +33,10 @@ struct Value {
     union {
         int int_val;      // int value
         float float_val;  // float value
-        long long bigint_val;
+        long long bigint_val; // bigint value
     };
     std::string str_val;  // string value
+    long long datetime_val;  // long long value datetime YYYYMMDDHHMMSS
 
     std::shared_ptr<RmRecord> raw;  // raw record buffer
 
@@ -59,29 +60,39 @@ struct Value {
         str_val = std::move(str_val_);
     }
 
+    void set_datetime(long long datetime_val_) {
+        type = TYPE_DATETIME;
+        datetime_val = datetime_val_;
+    }
+
     void init_raw(int len) {
         assert(raw == nullptr);
         raw = std::make_shared<RmRecord>(len);
         if (type == TYPE_INT) {
             assert(len == sizeof(int));
-            *(int *)(raw->data) = int_val;
+            *(int *) (raw->data) = int_val;
         } else if (type == TYPE_FLOAT) {
             assert(len == sizeof(float));
-            *(float *)(raw->data) = float_val;
+            *(float *) (raw->data) = float_val;
         } else if (type == TYPE_BIGINT) {
             assert(len == sizeof(long long));
-            *(long long *)(raw->data) = bigint_val;
+            *(long long *) (raw->data) = bigint_val;
         } else if (type == TYPE_STRING) {
-            if (len < (int)str_val.size()) {
+            if (len < (int) str_val.size()) {
                 throw StringOverflowError();
             }
             memset(raw->data, 0, len);
             memcpy(raw->data, str_val.c_str(), str_val.size());
+        } else if (type == TYPE_DATETIME) {
+            assert(len == sizeof(long long));
+            *(long long *) (raw->data) = datetime_val;
         }
     }
 };
 
-enum CompOp { OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE };
+enum CompOp {
+    OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE
+};
 
 struct Condition {
     TabCol lhs_col;   // left-hand side column

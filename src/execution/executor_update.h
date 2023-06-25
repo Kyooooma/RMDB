@@ -56,6 +56,13 @@ public:
             for (const auto &i: set_clauses_) {
                 auto col = mp[i.lhs];
                 auto value = i.rhs;
+                if(value.type != col.type){
+                    Value b = {.type = col.type};
+                    convert(value, b);
+                    if(value.type != col.type){
+                        throw IncompatibleTypeError(coltype2str(col.type), coltype2str(value.type));
+                    }
+                }
                 value.init_raw(col.len);
                 //更新记录数据
                 memcpy(rec->data + col.offset, value.raw->data, col.len);

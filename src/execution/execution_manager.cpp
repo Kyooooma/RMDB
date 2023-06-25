@@ -145,8 +145,8 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     std::fstream outfile;
     outfile.open("output.txt", std::ios::out | std::ios::app);
     outfile << "|";
-    for(int i = 0; i < captions.size(); ++i) {
-        outfile << " " << captions[i] << " |";
+    for(const auto & caption : captions) {
+        outfile << " " << caption << " |";
     }
     outfile << "\n";
 
@@ -168,6 +168,8 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
                 col_str.resize(strlen(col_str.c_str()));
             } else if (col.type == TYPE_BIGINT) {
                 col_str = std::to_string(*(long long *)rec_buf);
+            } else if (col.type == TYPE_DATETIME){
+                col_str = AbstractExecutor::datetime2string(*(long long *)rec_buf);
             }
             columns.push_back(col_str);
         }
@@ -175,8 +177,8 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
         rec_printer.print_record(columns, context);
         // print record into file
         outfile << "|";
-        for(int i = 0; i < columns.size(); ++i) {
-            outfile << " " << columns[i] << " |";
+        for(const auto & column : columns) {
+            outfile << " " << column << " |";
         }
         outfile << "\n";
         num_rec++;

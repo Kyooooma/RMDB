@@ -46,16 +46,12 @@ public:
         for (size_t i = 0; i < values_.size(); i++) {
             auto &col = tab_.cols[i];
             auto &val = values_[i];
-            if (col.type != val.type) {
-                if (col.type == TYPE_INT && val.type == TYPE_BIGINT) {
-                    if (val.bigint_val > INT32_MAX || val.bigint_val < INT32_MIN) {
-                        throw InvalidValueCountError();
-                    }
-                    val.set_int((int)val.bigint_val);
-                } else if(col.type == TYPE_BIGINT && val.type == TYPE_INT){
-                    val.set_bigint(val.int_val);
+            if(val.type != col.type){
+                Value b = {.type = col.type};
+                convert(val, b);
+                if(val.type != col.type){
+                    throw IncompatibleTypeError(coltype2str(col.type), coltype2str(val.type));
                 }
-                else throw IncompatibleTypeError(coltype2str(col.type), coltype2str(val.type));
             }
             val.init_raw(col.len);
             memcpy(rec.data + col.offset, val.raw->data, col.len);
