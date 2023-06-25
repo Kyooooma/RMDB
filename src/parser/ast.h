@@ -128,9 +128,9 @@ struct FloatLit : public Value {
 };
 
 struct BigintLit : public Value {
-    long long val;
+    __int128 val;
 
-    BigintLit(long long val_) : val(val_) {}
+    BigintLit(__int128 val_) : val(val_) {}
 };
 
 struct StringLit : public Value {
@@ -235,7 +235,7 @@ struct SelectStmt : public TreeNode {
 struct SemValue {
     int sv_int;
     float sv_float;
-    long long sv_bigint;
+    __int128 sv_bigint;
     std::string sv_str;
     OrderByDir sv_orderby_dir;
     std::vector<std::string> sv_strs;

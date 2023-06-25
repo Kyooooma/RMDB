@@ -1162,14 +1162,24 @@ case 45:
 YY_RULE_SETUP
 #line 105 "lex.l"
 {
-    yylval->sv_bigint = atoll(yytext);
+    __int128 value = 0;
+    int flag = 1;
+    if (*yytext == '-') {
+        flag = -1;
+        yytext++;
+    }
+    while ((*yytext >= '0' || *yytext <= '9')&&*yytext!='\0') {
+        value = value * 10 + *yytext - '0';
+        yytext++;
+    }
+    yylval->sv_bigint = value * flag;
     return VALUE_BIGINT;
 }
 	YY_BREAK
 case 46:
 /* rule 46 can match eol */
 YY_RULE_SETUP
-#line 109 "lex.l"
+#line 119 "lex.l"
 {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
     return VALUE_STRING;
@@ -1178,21 +1188,21 @@ YY_RULE_SETUP
 /* EOF */
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(STATE_COMMENT):
-#line 114 "lex.l"
+#line 124 "lex.l"
 { return T_EOF; }
 	YY_BREAK
 /* unexpected char */
 case 47:
 YY_RULE_SETUP
-#line 116 "lex.l"
+#line 126 "lex.l"
 { std::cerr << "Lexer Error: unexpected character " << yytext[0] << std::endl; }
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 117 "lex.l"
+#line 127 "lex.l"
 ECHO;
 	YY_BREAK
-#line 1196 "/mnt/d/github/db2023-x/src/parser/lex.yy.cpp"
+#line 1206 "/mnt/d/github/db2023-x/src/parser/lex.yy.cpp"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2158,6 +2168,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 117 "lex.l"
+#line 127 "lex.l"
 
 

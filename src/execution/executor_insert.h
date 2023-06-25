@@ -46,11 +46,6 @@ public:
         for (size_t i = 0; i < values_.size(); i++) {
             auto &col = tab_.cols[i];
             auto &val = values_[i];
-            if (val.type == TYPE_BIGINT) {
-                if (val.bigint_val > INT64_MAX || val.bigint_val < INT64_MIN) {
-                    throw InvalidValueCountError();
-                }
-            }
             if (col.type != val.type) {
                 if (col.type == TYPE_INT && val.type == TYPE_BIGINT) {
                     if (val.bigint_val > INT32_MAX || val.bigint_val < INT32_MIN) {

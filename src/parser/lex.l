@@ -102,7 +102,17 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
     return VALUE_FLOAT;
 }
 {value_bigint} {
-    yylval->sv_bigint = atoll(yytext);
+    __int128 value = 0;
+    int flag = 1;
+    if (*yytext == '-') {
+        flag = -1;
+        yytext++;
+    }
+    while ((*yytext >= '0' || *yytext <= '9')&&*yytext!='\0') {
+        value = value * 10 + *yytext - '0';
+        yytext++;
+    }
+    yylval->sv_bigint = value * flag;
     return VALUE_BIGINT;
 }
 {value_string} {
