@@ -49,10 +49,7 @@ struct Value {
         float_val = float_val_;
     }
 
-    void set_bigint(__int128 bigint_val_) {
-        if (bigint_val_ > INT64_MAX || bigint_val_ < INT64_MIN) {
-            throw InvalidValueCountError();
-        }
+    void set_bigint(long long bigint_val_) {
         type = TYPE_BIGINT;
         bigint_val = bigint_val_;
     }
