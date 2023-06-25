@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include <vector>
 #include <string>
 #include <memory>
+#include <algorithm>
 
 enum JoinType {
     INNER_JOIN, LEFT_JOIN, RIGHT_JOIN, FULL_JOIN
@@ -19,7 +20,7 @@ enum JoinType {
 namespace ast {
 
 enum SvType {
-    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING
+    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BIGINT, SV_TYPE_DATETIME
 };
 
 enum SvCompOp {
@@ -122,15 +123,51 @@ struct IntLit : public Value {
 };
 
 struct FloatLit : public Value {
-    float val;
+    double val;
 
-    FloatLit(float val_) : val(val_) {}
+    FloatLit(double val_) : val(val_) {}
+};
+
+struct BigintLit : public Value {
+    long long val;
+
+    BigintLit(long long val_) : val(val_) {}
 };
 
 struct StringLit : public Value {
     std::string val;
 
     StringLit(std::string val_) : val(std::move(val_)) {}
+};
+
+struct DatetimeLit : public Value {
+    long long val;
+
+    DatetimeLit(long long val_) : val(val_) {}
+    std::string to_string(){
+        long long x = val;
+        std::vector<int> v(5);
+        for(int i = 0; i < 5; i++){
+            v[i] = x % 100;
+            x /= 100;
+        }
+
+        std::reverse(v.begin(), v.end());
+        std::string res = std::to_string(x);
+        for(int i = 0; i < 2; i++){
+            std::string t = std::to_string(v[i]);
+            if(t.size() < 2) t = "0" + t;
+            res += "-" + t;
+        }
+        res += " ";
+        for(int i = 2; i < 5; i++){
+            std::string t = std::to_string(v[i]);
+            if(t.size() < 2) t = "0" + t;
+            res += t;
+            if(i + 1 < 5) res += ":";
+        }
+        return res;
+    }
 };
 
 struct Col : public Expr {
@@ -163,7 +200,7 @@ struct OrderBy : public TreeNode
     std::shared_ptr<Col> cols;
     OrderByDir orderby_dir;
     OrderBy( std::shared_ptr<Col> cols_, OrderByDir orderby_dir_) :
-       cols(std::move(cols_)), orderby_dir(std::move(orderby_dir_)) {}
+       cols(std::move(cols_)), orderby_dir(orderby_dir_) {}
 };
 
 struct InsertStmt : public TreeNode {
@@ -228,8 +265,10 @@ struct SelectStmt : public TreeNode {
 // Semantic value
 struct SemValue {
     int sv_int;
-    float sv_float;
+    double sv_float;
+    long long sv_bigint;
     std::string sv_str;
+    long long sv_datetime;
     OrderByDir sv_orderby_dir;
     std::vector<std::string> sv_strs;
 

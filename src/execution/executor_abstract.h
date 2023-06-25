@@ -56,6 +56,33 @@ public:
     }
 
     /**
+     * @brief datetime类型转换成string
+     * @return string
+     */
+    static std::string datetime2string(long long x){
+        std::vector<int> v(5);
+        for(int i = 0; i < 5; i++){
+            v[i] = x % 100;
+            x /= 100;
+        }
+        std::reverse(v.begin(), v.end());
+        std::string res = std::to_string(x);
+        for(int i = 0; i < 2; i++){
+            std::string t = std::to_string(v[i]);
+            if(t.size() < 2) t = "0" + t;
+            res += "-" + t;
+        }
+        res += " ";
+        for(int i = 2; i < 5; i++){
+            std::string t = std::to_string(v[i]);
+            if(t.size() < 2) t = "0" + t;
+            res += t;
+            if(i + 1 < 5) res += ":";
+        }
+        return res;
+    }
+
+    /**
      * @brief 类型转换
      * @return Value
      */
@@ -68,12 +95,24 @@ public:
                 break;
             }
             case TYPE_FLOAT: {
-                float fa = *(float *) a;
+                double fa = *(double *) a;
                 res.set_float(fa);
                 break;
             }
-            default:
-                throw InternalError("Unexpected data type");
+            case TYPE_BIGINT: {
+                long long ba = *(long long *) a;
+                res.set_bigint(ba);
+                break;
+            }
+            case TYPE_DATETIME: {
+                long long da = *(long long *) a;
+                res.set_datetime(da);
+                break;
+            }
+            case TYPE_STRING:
+                std::string str = a;
+                res.set_str(str);
+                break;
         }
         return res;
     }
@@ -100,7 +139,7 @@ public:
         if (rhs_type != lhs_type) {
             Value ls = get_Value(lhs_type, lhs);
             Value rs = get_Value(rhs_type, rhs);
-            cmp = dif_compare(ls, rs);
+            cmp = val_compare(ls, rs, lhs_col->len);
         } else {
             cmp = ix_compare(lhs, rhs, rhs_type, lhs_col->len);
         }
@@ -128,22 +167,54 @@ public:
     }
 
     static void convert(Value &a, Value &b) {
+        // 数值类型的转化(int, float, bigint)
+        // int -> float
+        // int -> bigint
+        // bigint -> float
+        // time -> string
+        if(a.type == b.type) return;
         if (a.type == TYPE_FLOAT) {
             if (b.type == TYPE_INT) {
-                b.set_float((float) b.int_val);
+                b.set_float((double) b.int_val);
                 return;
             }
-            throw InternalError("convert::Unexpected op type");
+            if (b.type == TYPE_BIGINT) {
+                b.set_float((double) b.bigint_val);
+                return;
+            }
         } else if (a.type == TYPE_INT) {
             if (b.type == TYPE_FLOAT) {
-                a.set_float((float) a.int_val);
+                a.set_float((double) a.int_val);
                 return;
             }
-            throw InternalError("convert::Unexpected op type");
+            if (b.type == TYPE_BIGINT) {
+                a.set_bigint((long long) a.int_val);
+                return;
+            }
+        } else if (a.type == TYPE_BIGINT) {
+            if (b.type == TYPE_INT) {
+                b.set_bigint((long long) b.int_val);
+                return;
+            }
+            if (b.type == TYPE_FLOAT) {
+                a.set_float((double) a.int_val);
+                return;
+            }
+        } else if(a.type == TYPE_DATETIME){
+            if(b.type == TYPE_STRING){
+                a.set_str(datetime2string(a.datetime_val));
+                return;
+            }
+        }else if(a.type == TYPE_STRING){
+            if(b.type == TYPE_DATETIME){
+                b.set_str(datetime2string(b.datetime_val));
+                return;
+            }
         }
+        throw InternalError("convert::Unexpected value type");
     }
 
-    static inline int dif_compare(Value &pa, Value &pb) {
+    static inline int val_compare(Value &pa, Value &pb, int len) {
         convert(pa, pb);
         switch (pa.type) {
             case TYPE_FLOAT:{
@@ -156,8 +227,21 @@ public:
                 int vb = pb.int_val;
                 return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
             }
-            default:
-                throw InternalError("Unexpected data type");
+            case TYPE_BIGINT: {
+                long long va = pa.bigint_val;
+                long long vb = pb.bigint_val;
+                return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
+            }
+            case TYPE_DATETIME: {
+                long long va = pa.datetime_val;
+                long long vb = pb.datetime_val;
+                return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
+            }
+            case TYPE_STRING: {
+                std::string va = pa.str_val.substr(0, len);
+                std::string vb = pb.str_val.substr(0, len);
+                return (va < vb) ? -1 : ((va > vb) ? 1 : 0);
+            }
         }
     }
 };

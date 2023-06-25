@@ -13,6 +13,7 @@
 %{
 #include "ast.h"
 #include "yacc.tab.h"
+#include <errors.h>
 #include <iostream>
 
 // automatically update location
@@ -38,6 +39,7 @@ sign "+"|"-"
 identifier {alpha}(_|{alpha}|{digit})*
 value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
+value_datetime '{digit}{4}-{digit}{2}-{digit}{2}{white_space}{digit}{2}:{digit}{2}:{digit}{2}'
 value_string '[^']*'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 
@@ -77,6 +79,8 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "INT" { return INT; }
 "CHAR" { return CHAR; }
 "FLOAT" { return FLOAT; }
+"BIGINT" { return BIGINT; }
+"DATETIME" {return DATETIME; }
 "INDEX" { return INDEX; }
 "AND" { return AND; }
 "JOIN" {return JOIN;}
@@ -97,12 +101,59 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 }
     /* literals */
 {value_int} {
-    yylval->sv_int = atoi(yytext);
+    yylval->sv_bigint = atoll(yytext);
+    int n = strlen(yytext);
+    std::string num = std::to_string(yylval->sv_bigint);
+    // 前导零填充长度
+    if(num.size() < n) {
+        std::string t(n - num.size(), '0');
+        if(num[0] == '+' || num[0] == '-') {
+            t[0] = num[0];
+            num[0] = '0';
+        }
+        num = t + num;
+    }
+    if((yytext[0] == '+' || yytext[0] == '-') && num[0] == '0') {
+        num[0] = yytext[0];
+    }
+    if(strcmp(num.c_str(), yytext) != 0) {
+        throw InvalidValueCountError();
+    }
+    if(yylval->sv_bigint > INT32_MAX || yylval->sv_bigint < INT32_MIN){
+        return VALUE_BIGINT;
+    }
+    yylval->sv_int = yylval->sv_bigint;
     return VALUE_INT;
 }
 {value_float} {
     yylval->sv_float = atof(yytext);
     return VALUE_FLOAT;
+}
+{value_datetime} {
+    // 判断日期合法性
+    std::string datetime = std::string(yytext + 1, strlen(yytext) - 2);
+    int y, m, d, h, mi, s;
+    sscanf(datetime.c_str(), "%d-%d-%d %d:%d:%d", &y, &m, &d, &h, &mi, &s);
+    int days[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if ((y % 4 == 0 && y % 100) || y % 400 == 0) {// 闰年
+        days[2] = 29;
+    } else {
+        days[2] = 28;
+    }
+    if (y < 1000 || y > 9999 || m < 1 || m > 12 || d < 1 || d > days[m] || h < 0 || h > 23 ||
+        mi < 0 || mi > 59 || s < 0 || s > 59) {// 判断年份 月份 日期 时 分 秒
+        yylval->sv_str = datetime;
+        return VALUE_STRING;
+    }
+    // 合法日期
+    long long res = 0;
+    for(auto i : datetime){
+        if(i >= '0' && i <= '9'){
+            res = res * 10 + i - '0';
+        }
+    }
+    yylval->sv_datetime = res;
+    return VALUE_DATETIME;
 }
 {value_string} {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
