@@ -161,6 +161,14 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
         ColType rhs_type;
         if (cond.is_rhs_val) {
             rhs_type = cond.rhs_val.type;
+            if(rhs_type == TYPE_BIGINT || rhs_type == TYPE_FLOAT || rhs_type == TYPE_DATETIME){
+                cond.rhs_val.init_raw(8);
+            }else if(rhs_type == TYPE_INT){
+                cond.rhs_val.init_raw(4);
+            }else{
+                cond.rhs_val.init_raw(lhs_col->len);
+            }
+
         } else {
             TabMeta &rhs_tab = sm_manager_->db_.get_table(cond.rhs_col.tab_name);
             auto rhs_col = rhs_tab.get_col(cond.rhs_col.col_name);

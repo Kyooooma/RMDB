@@ -111,9 +111,6 @@ public:
             }
             case TYPE_STRING:
                 std::string str = a;
-                for(int i = 0; i <= 5; i++) std::cout << int(a[i]) << ' ';
-                std::cout << "\nget_Value::";
-                std::cout << a << " " << strlen(a) << '\n' << str << " " << str.size() << "\n\n\n";
                 res.set_str(str);
                 break;
         }
@@ -128,19 +125,24 @@ public:
         auto lhs_col = get_col(rec_cols, cond.lhs_col);
         char *lhs = rec->data + lhs_col->offset;
         char *rhs;
-        ColType lhs_type = lhs_col->type;
-        Value rs;
+        ColType rhs_type, lhs_type = lhs_col->type;
         if (cond.is_rhs_val) {
-            rs = cond.rhs_val;
+            rhs_type = cond.rhs_val.type;
+            rhs = cond.rhs_val.raw->data;
         } else {
             // rhs is a column
             auto rhs_col = get_col(rec_cols, cond.rhs_col);
-            ColType rhs_type = rhs_col->type;
+            rhs_type = rhs_col->type;
             rhs = rec->data + rhs_col->offset;
-            rs = get_Value(rhs_type, rhs);
         }
-        Value ls = get_Value(lhs_type, lhs);
-        int cmp = val_compare(ls, rs, lhs_col->len);
+        int cmp;
+        if (rhs_type != lhs_type) {
+            Value ls = get_Value(lhs_type, lhs);
+            Value rs = get_Value(rhs_type, rhs);
+            cmp = val_compare(ls, rs, lhs_col->len);
+        } else {
+            cmp = ix_compare(lhs, rhs, rhs_type, lhs_col->len);
+        }
         std::cerr << cmp << '\n';
         if (cond.op == OP_EQ) {
             return cmp == 0;
