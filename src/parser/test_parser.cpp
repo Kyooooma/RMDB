@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include <cassert>
 
 #include "parser.h"
+#include "errors.h"
 
 int main() {
     std::vector<std::string> sqls = {
@@ -19,6 +20,10 @@ int main() {
         "desc tb;",
         "create table tb (a int, b float, c char(4));",
         "drop table tb;",
+        "create table tb (a bigint, b float, c char(4));",
+        "INSERT INTO t VALUES(372036854775807,233421);",
+        "INSERT INTO t VALUES(-922337203685477580,124332);",
+        "INSERT INTO t VALUES(9223372036854775809,12345);",
         "create index tb(a);",
         "create index tb(a, b, c);",
         "drop index tb(a, b, c);",
@@ -36,14 +41,18 @@ int main() {
     };
     for (auto &sql : sqls) {
         std::cout << sql << std::endl;
-        YY_BUFFER_STATE buf = yy_scan_string(sql.c_str());
-        assert(yyparse() == 0);
-        if (ast::parse_tree != nullptr) {
-            ast::TreePrinter::print(ast::parse_tree);
-            yy_delete_buffer(buf);
-            std::cout << std::endl;
-        } else {
-            std::cout << "exit/EOF" << std::endl;
+        try{
+            YY_BUFFER_STATE buf = yy_scan_string(sql.c_str());
+            assert(yyparse() == 0);
+            if (ast::parse_tree != nullptr) {
+                ast::TreePrinter::print(ast::parse_tree);
+                yy_delete_buffer(buf);
+                std::cout << std::endl;
+            } else {
+                std::cout << "exit/EOF" << std::endl;
+            }
+        }catch(InvalidValueCountError &e){
+            std::cout << e.what() << "\n\n";
         }
     }
     ast::parse_tree.reset();

@@ -133,13 +133,15 @@ public:
     }
 
     static void convert(Value &a, Value &b) {
+        // 数值类型的转化(int, float, bigint)
+        assert(a.type != b.type);
         if (a.type == TYPE_FLOAT) {
             if (b.type == TYPE_INT) {
                 b.set_float((float) b.int_val);
                 return;
             }
             if (b.type == TYPE_BIGINT) {
-                b.set_bigint((long long) b.bigint_val);
+                b.set_float((float) b.bigint_val);
                 return;
             }
             throw InternalError("convert::Unexpected op type");
@@ -149,13 +151,13 @@ public:
                 return;
             }
             if (b.type == TYPE_BIGINT) {
-                b.set_bigint((long long) b.bigint_val);
+                a.set_bigint((long long) a.int_val);
                 return;
             }
             throw InternalError("convert::Unexpected op type");
         } else if (a.type == TYPE_BIGINT) {
             if (b.type == TYPE_INT) {
-                b.set_float((float) b.int_val);
+                b.set_bigint((long long) b.int_val);
                 return;
             }
             if (b.type == TYPE_FLOAT) {

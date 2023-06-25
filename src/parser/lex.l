@@ -13,6 +13,7 @@
 %{
 #include "ast.h"
 #include "yacc.tab.h"
+#include <errors.h>
 #include <iostream>
 
 // automatically update location
@@ -36,8 +37,8 @@ white_space [ \t]+
 new_line "\r"|"\n"|"\r\n"
 sign "+"|"-"
 identifier {alpha}(_|{alpha}|{digit})*
+value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
-value_bigint {sign}?{digit}+
 value_string '[^']*'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 
@@ -97,13 +98,34 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
     return IDENTIFIER;
 }
     /* literals */
+{value_int} {
+    yylval->sv_bigint = atoll(yytext);
+    int n = strlen(yytext);
+    std::string num = std::to_string(yylval->sv_bigint);
+    // 前导零填充长度
+    if(num.size() < n) {
+        std::string t(n - num.size(), '0');
+        if(num[0] == '+' || num[0] == '-') {
+            t[0] = num[0];
+            num[0] = '0';
+        }
+        num = t + num;
+    }
+    if((yytext[0] == '+' || yytext[0] == '-') && num[0] == '0') {
+        num[0] = yytext[0];
+    }
+    if(strcmp(num.c_str(), yytext) != 0) {
+        throw InvalidValueCountError();
+    }
+    if(yylval->sv_bigint > INT32_MAX || yylval->sv_bigint < INT32_MIN){
+        return VALUE_BIGINT;
+    }
+    yylval->sv_int = yylval->sv_bigint;
+    return VALUE_INT;
+}
 {value_float} {
     yylval->sv_float = atof(yytext);
     return VALUE_FLOAT;
-}
-{value_bigint} {
-    yylval->sv_bigint = atoll(yytext);
-    return VALUE_BIGINT;
 }
 {value_string} {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
