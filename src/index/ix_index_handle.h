@@ -13,7 +13,7 @@ See the Mulan PSL v2 for more details. */
 #include "ix_defs.h"
 #include "transaction/transaction.h"
 
-enum class Operation { FIND = 0, INSERT, DELETE };  // 三种操作：查找、插入、删除
+enum class Operation { FIND, INSERT, DELETE };  // 三种操作：查找0、插入1、删除2
 
 static const bool binary_search = false;
 
@@ -72,7 +72,7 @@ public:
         rids = reinterpret_cast<Rid *>(keys + file_hdr->keys_size_);
     }
 
-    int get_size() { return page_hdr->num_key; }
+    int get_size() const { return page_hdr->num_key; }
 
     void set_size(int size) { page_hdr->num_key = size; }
 
@@ -105,8 +105,10 @@ public:
 
     void set_parent_page_no(page_id_t parent) { page_hdr->parent = parent; }
 
+    //得到键数组中指定位置的地址。
     char *get_key(int key_idx) const { return keys + key_idx * file_hdr->col_tot_len_; }
 
+    //得到值数组中指定位置的地址。
     Rid *get_rid(int rid_idx) const { return &rids[rid_idx]; }
 
     void set_key(int key_idx, const char *key) { memcpy(keys + key_idx * file_hdr->col_tot_len_, key, file_hdr->col_tot_len_); }

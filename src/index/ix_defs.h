@@ -31,8 +31,8 @@ public:
     std::vector<ColType> col_types_;    // 字段的类型
     std::vector<int> col_lens_;         // 字段的长度
     int col_tot_len_;                   // 索引包含的字段的总长度
-    int btree_order_;                   // # children per page 每个结点最多可插入的键值对数量
-    int keys_size_;                     // keys_size = (btree_order + 1) * col_tot_len
+    int btree_order_;                   // children per page 每个结点最多可插入的键值对数量
+    int keys_size_;                     // keys_size = (btree_order + 1) * col_tot_len 所有键值对总长度
     // first_leaf初始化之后没有进行修改，只不过是在测试文件中遍历叶子结点的时候用了
     page_id_t first_leaf_;              // 首叶节点对应的页号，在上层IxManager的open函数进行初始化，初始化为root page_no
     page_id_t last_leaf_;               // 尾叶节点对应的页号
@@ -88,7 +88,7 @@ public:
         assert(offset == tot_len_);
     }
 
-    void deserialize(char* src) {
+    void deserialize(const char* src) {
         int offset = 0;
         tot_len_ = *reinterpret_cast<const int*>(src + offset);
         offset += sizeof(int);
