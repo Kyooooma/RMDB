@@ -169,7 +169,6 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             std::vector<std::string> columns;
             int cnt = 0;
             for (auto &col : executorTreeRoot->cols()) {
-                std::string col_str;
                 char *rec_buf = Tuple->data + col.offset;
                 if (sel_cols[cnt].aggregate == "count") ans2[cnt]++, flag[cnt] = 2;
                 if (col.type == TYPE_INT) {
@@ -182,7 +181,6 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
                         if (flag[cnt] == 0) ans1[cnt] = *(int *)rec_buf, flag[cnt] = 1;
                         else ans1[cnt] = std::min(ans1[cnt], *(int *)rec_buf);
                     }
-                    col_str = std::to_string(*(int *)rec_buf);
                 } else if (col.type == TYPE_FLOAT) {
                     if (sel_cols[cnt].aggregate == "sum") ans3[cnt] += *(double *)rec_buf, flag[cnt] = 3;
                     if (sel_cols[cnt].aggregate == "max") {
@@ -193,10 +191,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
                         if (flag[cnt] == 0) ans3[cnt] = *(double *)rec_buf, flag[cnt] = 3;
                         else ans3[cnt] = std::min(ans3[cnt], *(double *)rec_buf);
                     }
-                    col_str = std::to_string(*(double *)rec_buf);
                 } else if (col.type == TYPE_STRING) {
-                    col_str = std::string((char *)rec_buf, col.len);
-                    col_str.resize(strlen(col_str.c_str()));
                     if (sel_cols[cnt].aggregate == "max") {
                         if (flag[cnt] == 0) ans4[cnt] = std::string((char *)rec_buf, col.len), flag[cnt] = 4;
                         else ans4[cnt] = std::max(ans4[cnt], std::string((char *)rec_buf, col.len));
@@ -206,18 +201,15 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
                         else ans4[cnt] = std::min(ans4[cnt], std::string((char *)rec_buf, col.len));
                     }
                 } else if (col.type == TYPE_BIGINT) {
-                    if (sel_cols[cnt].aggregate == "sum") ans2[cnt] += *(long long *)rec_buf, flag[cnt] = 2;
+                    if (sel_cols[cnt].aggregate == "sum") ans2[cnt] += *(long long *) rec_buf, flag[cnt] = 2;
                     if (sel_cols[cnt].aggregate == "max") {
-                        if (flag[cnt] == 0) ans2[cnt] = *(long long *)rec_buf, flag[cnt] = 2;
-                        else ans2[cnt] = std::max(ans2[cnt], *(long long *)rec_buf);
+                        if (flag[cnt] == 0) ans2[cnt] = *(long long *) rec_buf, flag[cnt] = 2;
+                        else ans2[cnt] = std::max(ans2[cnt], *(long long *) rec_buf);
                     }
                     if (sel_cols[cnt].aggregate == "min") {
-                        if (flag[cnt] == 0) ans2[cnt] = *(long long *)rec_buf, flag[cnt] = 2;
-                        else ans2[cnt] = std::min(ans2[cnt], *(long long *)rec_buf);
+                        if (flag[cnt] == 0) ans2[cnt] = *(long long *) rec_buf, flag[cnt] = 2;
+                        else ans2[cnt] = std::min(ans2[cnt], *(long long *) rec_buf);
                     }
-                    col_str = std::to_string(*(long long *)rec_buf);
-                } else if (col.type == TYPE_DATETIME){
-                    col_str = AbstractExecutor::datetime2string(*(long long *)rec_buf);
                 }
                 cnt++;
             }

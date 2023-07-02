@@ -285,37 +285,73 @@ col:
     {
         $$ = std::make_shared<Col>("", "", $6, "count");
     }
+    |   COUNT '(' '*' ')'
+    {
+        $$ = std::make_shared<Col>("", "", "count_row", "count");
+    }
     |   SUM '(' tbName '.' colName ')' AS colName
     {
         $$ = std::make_shared<Col>($3, $5, $8, "sum");
+    }
+    |   SUM '(' tbName '.' colName ')'
+    {
+        $$ = std::make_shared<Col>($3, $5, "sum_" + $5, "sum");
     }
     |   MAX '(' tbName '.' colName ')' AS colName
     {
         $$ = std::make_shared<Col>($3, $5, $8, "max");
     }
+    |   MAX '(' tbName '.' colName ')'
+    {
+        $$ = std::make_shared<Col>($3, $5, "max_" + $5, "max");
+    }
     |   MIN '(' tbName '.' colName ')' AS colName
     {
         $$ = std::make_shared<Col>($3, $5, $8, "min");
+    }
+    |   MIN '(' tbName '.' colName ')'
+    {
+        $$ = std::make_shared<Col>($3, $5, "min_" + $5, "min");
     }
     |   COUNT '(' tbName '.' colName ')' AS colName
     {
         $$ = std::make_shared<Col>($3, $5, $8, "count");
     }
+    |   COUNT '(' tbName '.' colName ')'
+    {
+        $$ = std::make_shared<Col>($3, $5, "count_" + $5, "count");
+    }
     |   SUM '(' colName ')' AS colName
     {
         $$ = std::make_shared<Col>("", $3, $6, "sum");
+    }
+    |   SUM '(' colName ')'
+    {
+        $$ = std::make_shared<Col>("", $3, "sum_" + $3, "sum");
     }
     |   MAX '(' colName ')' AS colName
     {
         $$ = std::make_shared<Col>("", $3, $6, "max");
     }
+    |   MAX '(' colName ')'
+    {
+        $$ = std::make_shared<Col>("", $3, "max_" + $3, "max");
+    }
     |   MIN '(' colName ')' AS colName
     {
         $$ = std::make_shared<Col>("", $3, $6, "min");
     }
+    |   MIN '(' colName ')'
+    {
+        $$ = std::make_shared<Col>("", $3, "min_" + $3, "min");
+    }
     |   COUNT '(' colName ')' AS colName
     {
         $$ = std::make_shared<Col>("", $3, $6, "count");
+    }
+    |   COUNT '(' colName ')'
+    {
+        $$ = std::make_shared<Col>("", $3, "count" + $3, "count");
     }
     ;
 
