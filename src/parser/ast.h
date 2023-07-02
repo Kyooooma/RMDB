@@ -173,9 +173,19 @@ struct DatetimeLit : public Value {
 struct Col : public Expr {
     std::string tab_name;
     std::string col_name;
+    std::string as_name;
+    std::string aggregate;
 
     Col(std::string tab_name_, std::string col_name_) :
-            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)) {}
+            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)) {};
+
+    Col(std::string tab_name_, std::string col_name_, std::string as_name_) :
+            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)),
+            as_name(std::move(as_name_)) {};
+
+    Col(std::string tab_name_, std::string col_name_, std::string as_name_, std::string aggregate_) :
+            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)),
+            as_name(std::move(as_name_)), aggregate(std::move(aggregate_)) {}
 };
 
 struct SetClause : public TreeNode {

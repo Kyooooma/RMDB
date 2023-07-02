@@ -133,7 +133,8 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     std::vector<std::string> captions;
     captions.reserve(sel_cols.size());
     for (auto &sel_col : sel_cols) {
-        captions.push_back(sel_col.col_name);
+        if (!sel_col.as_name.empty()) captions.push_back(sel_col.as_name);
+        else captions.push_back(sel_col.col_name);
     }
 
     // Print header into buffer
@@ -153,35 +154,128 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     // Print records
     size_t num_rec = 0;
     // 执行query_plan
-    for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
-        auto Tuple = executorTreeRoot->Next();
-        std::vector<std::string> columns;
-        for (auto &col : executorTreeRoot->cols()) {
-            std::string col_str;
-            char *rec_buf = Tuple->data + col.offset;
-            if (col.type == TYPE_INT) {
-                col_str = std::to_string(*(int *)rec_buf);
-            } else if (col.type == TYPE_FLOAT) {
-                col_str = std::to_string(*(double *)rec_buf);
-            } else if (col.type == TYPE_STRING) {
-                col_str = std::string((char *)rec_buf, col.len);
-                col_str.resize(strlen(col_str.c_str()));
-            } else if (col.type == TYPE_BIGINT) {
-                col_str = std::to_string(*(long long *)rec_buf);
-            } else if (col.type == TYPE_DATETIME){
-                col_str = AbstractExecutor::datetime2string(*(long long *)rec_buf);
+
+    // 聚合函数
+    if (!sel_cols[0].aggregate.empty()) {
+        std::vector<int> ans1(sel_cols.size());
+        std::vector<long long> ans2(sel_cols.size());
+        std::vector<double> ans3(sel_cols.size());
+        std::vector<std::string> ans4(sel_cols.size());
+        std::vector<int> flag(sel_cols.size());
+        num_rec = 1;
+        int col_cnt = 0;
+        for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
+            auto Tuple = executorTreeRoot->Next();
+            std::vector<std::string> columns;
+            int cnt = 0;
+            for (auto &col : executorTreeRoot->cols()) {
+                std::string col_str;
+                char *rec_buf = Tuple->data + col.offset;
+                if (sel_cols[cnt].aggregate == "count") ans2[cnt]++, flag[cnt] = 2;
+                if (col.type == TYPE_INT) {
+                    if (sel_cols[cnt].aggregate == "sum") ans1[cnt] += *(int *)rec_buf, flag[cnt] = 1;
+                    if (sel_cols[cnt].aggregate == "max") {
+                        if (flag[cnt] == 0) ans1[cnt] = *(int *)rec_buf, flag[cnt] = 1;
+                        else ans1[cnt] = std::max(ans1[cnt], *(int *)rec_buf);
+                    }
+                    if (sel_cols[cnt].aggregate == "min") {
+                        if (flag[cnt] == 0) ans1[cnt] = *(int *)rec_buf, flag[cnt] = 1;
+                        else ans1[cnt] = std::min(ans1[cnt], *(int *)rec_buf);
+                    }
+                    col_str = std::to_string(*(int *)rec_buf);
+                } else if (col.type == TYPE_FLOAT) {
+                    if (sel_cols[cnt].aggregate == "sum") ans3[cnt] += *(double *)rec_buf, flag[cnt] = 3;
+                    if (sel_cols[cnt].aggregate == "max") {
+                        if (flag[cnt] == 0) ans3[cnt] = *(double *)rec_buf, flag[cnt] = 3;
+                        else ans3[cnt] = std::max(ans3[cnt], *(double *)rec_buf);
+                    }
+                    if (sel_cols[cnt].aggregate == "min") {
+                        if (flag[cnt] == 0) ans3[cnt] = *(double *)rec_buf, flag[cnt] = 3;
+                        else ans3[cnt] = std::min(ans3[cnt], *(double *)rec_buf);
+                    }
+                    col_str = std::to_string(*(double *)rec_buf);
+                } else if (col.type == TYPE_STRING) {
+                    col_str = std::string((char *)rec_buf, col.len);
+                    col_str.resize(strlen(col_str.c_str()));
+                    if (sel_cols[cnt].aggregate == "max") {
+                        if (flag[cnt] == 0) ans4[cnt] = std::string((char *)rec_buf, col.len), flag[cnt] = 4;
+                        else ans4[cnt] = std::max(ans4[cnt], std::string((char *)rec_buf, col.len));
+                    }
+                    if (sel_cols[cnt].aggregate == "min") {
+                        if (flag[cnt] == 0) ans4[cnt] = std::string((char *)rec_buf, col.len), flag[cnt] = 4;
+                        else ans4[cnt] = std::min(ans4[cnt], std::string((char *)rec_buf, col.len));
+                    }
+                } else if (col.type == TYPE_BIGINT) {
+                    if (sel_cols[cnt].aggregate == "sum") ans2[cnt] += *(long long *)rec_buf, flag[cnt] = 2;
+                    if (sel_cols[cnt].aggregate == "max") {
+                        if (flag[cnt] == 0) ans2[cnt] = *(long long *)rec_buf, flag[cnt] = 2;
+                        else ans2[cnt] = std::max(ans2[cnt], *(long long *)rec_buf);
+                    }
+                    if (sel_cols[cnt].aggregate == "min") {
+                        if (flag[cnt] == 0) ans2[cnt] = *(long long *)rec_buf, flag[cnt] = 2;
+                        else ans2[cnt] = std::min(ans2[cnt], *(long long *)rec_buf);
+                    }
+                    col_str = std::to_string(*(long long *)rec_buf);
+                } else if (col.type == TYPE_DATETIME){
+                    col_str = AbstractExecutor::datetime2string(*(long long *)rec_buf);
+                }
+                cnt++;
             }
-            columns.push_back(col_str);
+            col_cnt = cnt;
         }
-        // print record into buffer
-        rec_printer.print_record(columns, context);
-        // print record into file
+        std::vector<std::string> columns;
         outfile << "|";
-        for(const auto & column : columns) {
-            outfile << " " << column << " |";
+        for (int i = 0; i < col_cnt; ++i) {
+            if (flag[i] == 1) {
+                columns.push_back(std::to_string(ans1[i]));
+                outfile << " " << std::to_string(ans1[i]) << " |";
+            } else if (flag[i] == 2) {
+                columns.push_back(std::to_string(ans2[i]));
+                outfile << " " << std::to_string(ans2[i]) << " |";
+            } else if (flag[i] == 3) {
+                columns.push_back(std::to_string(ans3[i]));
+                outfile << " " << std::to_string(ans3[i]) << " |";
+            } else{
+                columns.push_back(ans4[i]);
+                outfile << " " << ans4[i] << " |";
+            }
         }
         outfile << "\n";
-        num_rec++;
+        rec_printer.print_record(columns, context);
+    }
+
+    // 正常select
+    else {
+        for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
+            auto Tuple = executorTreeRoot->Next();
+            std::vector<std::string> columns;
+            for (auto &col: executorTreeRoot->cols()) {
+                std::string col_str;
+                char *rec_buf = Tuple->data + col.offset;
+                if (col.type == TYPE_INT) {
+                    col_str = std::to_string(*(int *) rec_buf);
+                } else if (col.type == TYPE_FLOAT) {
+                    col_str = std::to_string(*(double *) rec_buf);
+                } else if (col.type == TYPE_STRING) {
+                    col_str = std::string((char *) rec_buf, col.len);
+                    col_str.resize(strlen(col_str.c_str()));
+                } else if (col.type == TYPE_BIGINT) {
+                    col_str = std::to_string(*(long long *) rec_buf);
+                } else if (col.type == TYPE_DATETIME) {
+                    col_str = AbstractExecutor::datetime2string(*(long long *) rec_buf);
+                }
+                columns.push_back(col_str);
+            }
+            // print record into buffer
+            rec_printer.print_record(columns, context);
+            // print record into file
+            outfile << "|";
+            for (const auto &column: columns) {
+                outfile << " " << column << " |";
+            }
+            outfile << "\n";
+            num_rec++;
+        }
     }
     outfile.close();
     // Print footer into buffer

@@ -21,7 +21,7 @@ using namespace ast;
 %define parse.error verbose
 
 // keywords
-%token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY
+%token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY SUM COUNT MAX MIN AS
 WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
@@ -265,13 +265,57 @@ whereClause:
     ;
 
 col:
-        tbName '.' colName
+        tbName '.' colName AS colName
+    {
+        $$ = std::make_shared<Col>($1, $3, $5);
+    }
+    |   colName AS colName
+    {
+        $$ = std::make_shared<Col>("", $1, $3);
+    }
+    |    tbName '.' colName
     {
         $$ = std::make_shared<Col>($1, $3);
     }
     |   colName
     {
         $$ = std::make_shared<Col>("", $1);
+    }
+    |   COUNT '(' '*' ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", "", $6, "count");
+    }
+    |   SUM '(' tbName '.' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>($3, $5, $8, "sum");
+    }
+    |   MAX '(' tbName '.' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>($3, $5, $8, "max");
+    }
+    |   MIN '(' tbName '.' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>($3, $5, $8, "min");
+    }
+    |   COUNT '(' tbName '.' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>($3, $5, $8, "count");
+    }
+    |   SUM '(' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", $3, $6, "sum");
+    }
+    |   MAX '(' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", $3, $6, "max");
+    }
+    |   MIN '(' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", $3, $6, "min");
+    }
+    |   COUNT '(' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", $3, $6, "count");
     }
     ;
 
