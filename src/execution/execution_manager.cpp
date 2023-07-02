@@ -58,6 +58,11 @@ void QlManager::run_mutli_query(std::shared_ptr<Plan> plan, Context *context){
                 sm_manager_->drop_table(x->tab_name_, context);
                 break;
             }
+            case T_ShowIndex:
+            {
+                sm_manager_->show_index(x->tab_name_, context);
+                break;
+            }
             case T_CreateIndex:
             {
                 sm_manager_->create_index(x->tab_name_, x->tab_col_names_, context);

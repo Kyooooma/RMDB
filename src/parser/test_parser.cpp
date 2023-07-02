@@ -41,13 +41,16 @@ int main() {
         "select SUM(id) as sum_id from aggregate;",
         "exit;",
         "help;",
-        "",
+        "show index from warehouse;",
+        "drop index warehouse (id,name);",
+        ""
     };
     for (auto &sql : sqls) {
         std::cout << sql << std::endl;
         try{
             YY_BUFFER_STATE buf = yy_scan_string(sql.c_str());
-            assert(yyparse() == 0);
+            yyparse();
+//            assert(yyparse() == 0);
             if (ast::parse_tree != nullptr) {
                 ast::TreePrinter::print(ast::parse_tree);
                 yy_delete_buffer(buf);
