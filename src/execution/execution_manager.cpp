@@ -156,81 +156,62 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     // 执行query_plan
 
     // 聚合函数
-    if (!sel_cols[0].aggregate.empty()) {
-        std::vector<int> ans1(sel_cols.size());
-        std::vector<long long> ans2(sel_cols.size());
-        std::vector<double> ans3(sel_cols.size());
-        std::vector<std::string> ans4(sel_cols.size());
-        std::vector<int> flag(sel_cols.size());
+    if (!sel_cols.begin()->aggregate.empty()) {
+        std::string type = sel_cols.begin()->aggregate;
+        int ans1 = 0;
+        double ans2 = 0;
+        std::string ans3;
+        int flag = 0;
         num_rec = 1;
-        int col_cnt = 0;
         for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
             auto Tuple = executorTreeRoot->Next();
             std::vector<std::string> columns;
-            int cnt = 0;
             for (auto &col : executorTreeRoot->cols()) {
                 char *rec_buf = Tuple->data + col.offset;
-                if (sel_cols[cnt].aggregate == "count") ans2[cnt]++, flag[cnt] = 2;
+                if (type == "count") ans1++, flag = 1;
                 if (col.type == TYPE_INT) {
-                    if (sel_cols[cnt].aggregate == "sum") ans1[cnt] += *(int *)rec_buf, flag[cnt] = 1;
-                    if (sel_cols[cnt].aggregate == "max") {
-                        if (flag[cnt] == 0) ans1[cnt] = *(int *)rec_buf, flag[cnt] = 1;
-                        else ans1[cnt] = std::max(ans1[cnt], *(int *)rec_buf);
+                    if (type == "sum") ans1 += *(int *)rec_buf, flag = 1;
+                    if (type == "max") {
+                        if (flag == 0) ans1 = *(int *)rec_buf, flag = 1;
+                        else ans1 = std::max(ans1, *(int *)rec_buf);
                     }
-                    if (sel_cols[cnt].aggregate == "min") {
-                        if (flag[cnt] == 0) ans1[cnt] = *(int *)rec_buf, flag[cnt] = 1;
-                        else ans1[cnt] = std::min(ans1[cnt], *(int *)rec_buf);
+                    if (type == "min") {
+                        if (flag == 0) ans1 = *(int *)rec_buf, flag = 1;
+                        else ans1 = std::min(ans1, *(int *)rec_buf);
                     }
                 } else if (col.type == TYPE_FLOAT) {
-                    if (sel_cols[cnt].aggregate == "sum") ans3[cnt] += *(double *)rec_buf, flag[cnt] = 3;
-                    if (sel_cols[cnt].aggregate == "max") {
-                        if (flag[cnt] == 0) ans3[cnt] = *(double *)rec_buf, flag[cnt] = 3;
-                        else ans3[cnt] = std::max(ans3[cnt], *(double *)rec_buf);
+                    if (type == "sum") ans2 += *(double *)rec_buf, flag = 2;
+                    if (type == "max") {
+                        if (flag == 0) ans2 = *(double *)rec_buf, flag = 2;
+                        else ans2 = std::max(ans2, *(double *)rec_buf);
                     }
-                    if (sel_cols[cnt].aggregate == "min") {
-                        if (flag[cnt] == 0) ans3[cnt] = *(double *)rec_buf, flag[cnt] = 3;
-                        else ans3[cnt] = std::min(ans3[cnt], *(double *)rec_buf);
+                    if (type == "min") {
+                        if (flag == 0) ans2 = *(double *)rec_buf, flag = 2;
+                        else ans2 = std::min(ans2, *(double *)rec_buf);
                     }
                 } else if (col.type == TYPE_STRING) {
-                    if (sel_cols[cnt].aggregate == "max") {
-                        if (flag[cnt] == 0) ans4[cnt] = std::string((char *)rec_buf, col.len), flag[cnt] = 4;
-                        else ans4[cnt] = std::max(ans4[cnt], std::string((char *)rec_buf, col.len));
+                    if (type == "max") {
+                        if (flag == 0) ans3 = std::string((char *)rec_buf, col.len), flag = 3;
+                        else ans3 = std::max(ans3, std::string((char *)rec_buf, col.len));
                     }
-                    if (sel_cols[cnt].aggregate == "min") {
-                        if (flag[cnt] == 0) ans4[cnt] = std::string((char *)rec_buf, col.len), flag[cnt] = 4;
-                        else ans4[cnt] = std::min(ans4[cnt], std::string((char *)rec_buf, col.len));
-                    }
-                } else if (col.type == TYPE_BIGINT) {
-                    if (sel_cols[cnt].aggregate == "sum") ans2[cnt] += *(long long *) rec_buf, flag[cnt] = 2;
-                    if (sel_cols[cnt].aggregate == "max") {
-                        if (flag[cnt] == 0) ans2[cnt] = *(long long *) rec_buf, flag[cnt] = 2;
-                        else ans2[cnt] = std::max(ans2[cnt], *(long long *) rec_buf);
-                    }
-                    if (sel_cols[cnt].aggregate == "min") {
-                        if (flag[cnt] == 0) ans2[cnt] = *(long long *) rec_buf, flag[cnt] = 2;
-                        else ans2[cnt] = std::min(ans2[cnt], *(long long *) rec_buf);
+                    if (type == "min") {
+                        if (flag == 0) ans3 = std::string((char *)rec_buf, col.len), flag = 3;
+                        else ans3 = std::min(ans3, std::string((char *)rec_buf, col.len));
                     }
                 }
-                cnt++;
             }
-            col_cnt = cnt;
         }
         std::vector<std::string> columns;
         outfile << "|";
-        for (int i = 0; i < col_cnt; ++i) {
-            if (flag[i] == 1) {
-                columns.push_back(std::to_string(ans1[i]));
-                outfile << " " << std::to_string(ans1[i]) << " |";
-            } else if (flag[i] == 2) {
-                columns.push_back(std::to_string(ans2[i]));
-                outfile << " " << std::to_string(ans2[i]) << " |";
-            } else if (flag[i] == 3) {
-                columns.push_back(std::to_string(ans3[i]));
-                outfile << " " << std::to_string(ans3[i]) << " |";
-            } else{
-                columns.push_back(ans4[i]);
-                outfile << " " << ans4[i] << " |";
-            }
+        if (flag == 1) {
+            columns.push_back(std::to_string(ans1));
+            outfile << " " << std::to_string(ans1) << " |";
+        } else if (flag == 2) {
+            columns.push_back(std::to_string(ans2));
+            outfile << " " << std::to_string(ans2) << " |";
+        } else {
+            columns.push_back(ans3);
+            outfile << " " << ans3 << " |";
         }
         outfile << "\n";
         rec_printer.print_record(columns, context);
