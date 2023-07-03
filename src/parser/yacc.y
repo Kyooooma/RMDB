@@ -50,7 +50,8 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP 
 %type <sv_set_clauses> setClauses
 %type <sv_cond> condition
 %type <sv_conds> whereClause optWhereClause
-%type <sv_orderby>  order_clause opt_order_clause
+%type <sv_orderby> order_clause
+%type <sv_orderbys> order_clauses opt_order_clause
 %type <sv_orderby_dir> opt_asc_desc
 
 %%
@@ -450,17 +451,29 @@ tableList:
     ;
 
 opt_order_clause:
-    ORDER BY order_clause      
+    ORDER BY order_clauses
     { 
         $$ = $3; 
     }
     |   /* epsilon */ { /* ignore*/ }
     ;
 
+
 order_clause:
-      col  opt_asc_desc 
-    { 
+      col  opt_asc_desc
+    {
         $$ = std::make_shared<OrderBy>($1, $2);
+    }
+    ;
+
+order_clauses:
+      order_clause
+    {
+        $$ = std::vector<std::shared_ptr<OrderBy>>{$1};
+    }
+    |	order_clauses ',' order_clause
+    {
+    	$$.push_back($3);
     }
     ;   
 
