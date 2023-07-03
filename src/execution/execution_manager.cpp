@@ -168,6 +168,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
         std::string ans3;
         int flag = 0;
         num_rec = 1;
+        if (type == "count") flag = 1;
         for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
             auto Tuple = executorTreeRoot->Next();
             std::vector<std::string> columns;
