@@ -245,8 +245,7 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
             .cols = cols,
     };
     tab.indexes.push_back(im);
-//    db_.SetTabMeta(tab_name, tab);
-    ihs_.emplace(ix_name, ix_manager_->open_index(ix_name));
+    ihs_.emplace(ix_name, ix_manager_->open_index(tab_name, cols));
     flush_meta();
 }
 
@@ -269,7 +268,10 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<std::s
     auto pos = std::find(tab.indexes.begin(), tab.indexes.end(), im);
     tab.indexes.erase(pos);
     auto ix_name = ix_manager_->get_index_name(tab_name, cols);
-    ihs_.erase(ix_name);
+    if (ihs_.count(ix_name)) {// 说明被打开了
+        disk_manager_->close_file(ihs_[ix_name]->get_fd());
+        ihs_.erase(ix_name);
+    }
     ix_manager_->destroy_index(tab_name, col_names);
     flush_meta();
 }
@@ -290,7 +292,10 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<ColMet
     auto pos = std::find(tab.indexes.begin(), tab.indexes.end(), im);
     tab.indexes.erase(pos);
     auto ix_name = ix_manager_->get_index_name(tab_name, cols);
-    ihs_.erase(ix_name);
+    if (ihs_.count(ix_name)) {// 说明被打开了
+        disk_manager_->close_file(ihs_[ix_name]->get_fd());
+        ihs_.erase(ix_name);
+    }
     ix_manager_->destroy_index(tab_name, cols);
     flush_meta();
 }

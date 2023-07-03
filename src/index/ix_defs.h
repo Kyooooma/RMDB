@@ -88,7 +88,7 @@ public:
         assert(offset == tot_len_);
     }
 
-    void deserialize(const char* src) {
+    void deserialize(char* src) {
         int offset = 0;
         tot_len_ = *reinterpret_cast<const int*>(src + offset);
         offset += sizeof(int);
