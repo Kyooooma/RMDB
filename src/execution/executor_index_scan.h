@@ -90,16 +90,25 @@ public:
         std::cout << "index_scan!!!\n";
         char *key = new char[index_meta_.col_tot_len];
         Value min_int, min_float, min_char;
-        min_int.set_int(INT32_MIN);
-        min_int.init_raw(sizeof(int));
-        min_char.set_str("");
-        min_char.init_raw((int)min_char.str_val.size());
-        min_float.set_float(-1e40);
-        min_float.init_raw(sizeof(double));
+        {
+            min_int.set_int(INT32_MIN);
+            min_int.init_raw(sizeof(int));
+            min_char.set_str("");
+            min_char.init_raw((int)min_char.str_val.size());
+            min_float.set_float(-1e40);
+            min_float.init_raw(sizeof(double));
+        }
+        Value max_int, max_float;
+        {
+            max_int.set_int(INT32_MAX);
+            max_int.init_raw(sizeof(int));
+            max_float.set_float(1e40);
+            max_float.init_raw(sizeof(double));
+        }
         int offset = 0, i, f = 1;
         for (i = 0; i < conds_.size() && f; i++) {
             auto cond = conds_[i];
-            if (!cond.is_rhs_val || i >= index_col_names_.size() ||
+            if (!cond.is_rhs_val || i >= index_col_names_.size() || cond.lhs_col.tab_name != tab_name_ ||
                     cond.lhs_col.col_name != index_col_names_[i] || cond.op == OP_NE)
                 break;
             if(cond.op == OP_GE || cond.op == OP_GT){// >= | >
@@ -125,25 +134,43 @@ public:
                 }
                 offset += index_meta_.cols[i].len;
                 f = 0;
-            }else{
+            }else{// =
                 memcpy(key + offset, cond.rhs_val.raw->data, index_meta_.cols[i].len);
                 offset += index_meta_.cols[i].len;
             }
         }
         index_cnt = i;
+        auto &type = conds_[index_cnt - 1].op;
+        int flag = type == OP_GT ? 1 : 0;
         for(; i < index_meta_.cols.size(); i++){
-            auto col = index_meta_.cols[i];
+            auto &col = index_meta_.cols[i];
             switch (col.type) {
                 case TYPE_INT: {
-                    memcpy(key + offset, min_int.raw->data, col.len);
+                    if(flag){
+                        memcpy(key + offset, max_int.raw->data, col.len);
+                    }else{
+                        memcpy(key + offset, min_int.raw->data, col.len);
+                    }
                     break;
                 }
                 case TYPE_FLOAT:{
-                    memcpy(key + offset, min_float.raw->data, col.len);
+                    if(flag){
+                        memcpy(key + offset, max_float.raw->data, col.len);
+                    }else{
+                        memcpy(key + offset, min_float.raw->data, col.len);
+                    }
                     break;
                 }
                 case TYPE_STRING:{
-                    memcpy(key + offset, min_char.raw->data, col.len);
+                    if(flag){
+                        Value str_val;
+                        std::string val(col.len, (char)(127));
+                        str_val.set_str(val);
+                        str_val.init_raw(col.len);
+                        memcpy(key + offset, str_val.raw->data, col.len);
+                    }else {
+                        memcpy(key + offset, min_char.raw->data, col.len);
+                    }
                     break;
                 }
                 default:
@@ -151,7 +178,6 @@ public:
             }
             offset += col.len;
         }
-        auto type = conds_[index_cnt - 1].op;
         Iid start = ih->leaf_begin();
         if(type == OP_GT) start = ih->upper_bound(key);
         else start = ih->lower_bound(key);
