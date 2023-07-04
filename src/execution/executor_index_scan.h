@@ -189,7 +189,7 @@ public:
         else start = ih->lower_bound(key);
         Iid end = ih->leaf_end();
         scan_ = std::make_unique<IxScan>(ih, start, end, sm_manager_->get_bpm());
-        while(!is_end()){
+        while(!scan_->is_end()){
             rid_ = scan_->rid();
             try {
                 auto rec = fh_->get_record(rid_, context_);
