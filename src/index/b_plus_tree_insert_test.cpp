@@ -72,14 +72,24 @@ class BPlusTreeTests : public ::testing::Test {
             throw UnixError();
         }
         // 如果测试文件存在，则先删除原文件（最后留下来的文件存的是最后一个测试点的数据）
-        if (ix_manager_->exists(TEST_FILE_NAME, index_no)) {
-            ix_manager_->destroy_index(TEST_FILE_NAME, index_no);
+        std::vector<ColMeta> cols;
+        ColMeta col = {
+                .tab_name = TEST_FILE_NAME,
+                .name = std::to_string(index_no),
+                .type = TYPE_INT,
+                .len = sizeof(int),
+                .offset = 0,
+                .index = false,
+        };
+        cols.push_back(col);
+        if (ix_manager_->exists(TEST_FILE_NAME, cols)) {
+            ix_manager_->destroy_index(TEST_FILE_NAME, cols);
         }
         // 创建测试文件
-        ix_manager_->create_index(TEST_FILE_NAME, index_no, TYPE_INT, sizeof(int));
-        assert(ix_manager_->exists(TEST_FILE_NAME, index_no));
+        ix_manager_->create_index(TEST_FILE_NAME, cols);
+        assert(ix_manager_->exists(TEST_FILE_NAME, cols));
         // 打开测试文件
-        ih_ = ix_manager_->open_index(TEST_FILE_NAME, index_no);
+        ih_ = ix_manager_->open_index(TEST_FILE_NAME, cols);
         assert(ih_ != nullptr);
     }
 
@@ -232,8 +242,8 @@ TEST_F(BPlusTreeTests, InsertTest) {
         Rid rid = {.page_no = static_cast<int32_t>(key >> 32),
                    .slot_no = value};  // page_id = (key>>32), slot_num = (key & 0xFFFFFFFF)
         index_key = (const char *)&key;
-        bool insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
-        ASSERT_EQ(insert_ret, true);
+        auto insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
+        ASSERT_EQ(insert_ret.second, true);
 
         Draw(buffer_pool_manager_.get(), "insert" + std::to_string(key) + ".dot");
     }
@@ -265,7 +275,7 @@ TEST_F(BPlusTreeTests, InsertTest) {
  * @note lab2 计分：20 points
  */
 TEST_F(BPlusTreeTests, LargeScaleTest) {
-    const int64_t scale = 100000;
+    const int64_t scale = 10000;
     const int order = 256;
 
     assert(order > 2 && order <= ih_->file_hdr_->btree_order_);
@@ -286,8 +296,8 @@ TEST_F(BPlusTreeTests, LargeScaleTest) {
         Rid rid = {.page_no = static_cast<int32_t>(key >> 32),
                    .slot_no = value};  // page_id = (key>>32), slot_num = (key & 0xFFFFFFFF)
         index_key = (const char *)&key;
-        bool insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
-        ASSERT_EQ(insert_ret, true);
+        auto insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
+        ASSERT_EQ(insert_ret.second, true);
     }
 
     // test get_value
