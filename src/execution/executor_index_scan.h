@@ -89,12 +89,10 @@ public:
     void beginTuple() override {
         std::cout << "index_scan!!!\n";
         char *key = new char[index_meta_.col_tot_len];
-        Value min_int, min_float, min_char;
+        Value min_int, min_float;
         {
             min_int.set_int(INT32_MIN);
             min_int.init_raw(sizeof(int));
-            min_char.set_str("");
-            min_char.init_raw((int)min_char.str_val.size());
             min_float.set_float(-1e40);
             min_float.init_raw(sizeof(double));
         }
@@ -126,6 +124,10 @@ public:
                         break;
                     }
                     case TYPE_STRING:{
+                        Value min_char;
+                        std::string val;
+                        min_char.set_str(val);
+                        min_char.init_raw(index_meta_.cols[i].len);
                         memcpy(key + offset, min_char.raw->data, index_meta_.cols[i].len);
                         break;
                     }
@@ -169,6 +171,10 @@ public:
                         str_val.init_raw(col.len);
                         memcpy(key + offset, str_val.raw->data, col.len);
                     }else {
+                        Value min_char;
+                        std::string val;
+                        min_char.set_str(val);
+                        min_char.init_raw(index_meta_.cols[i].len);
                         memcpy(key + offset, min_char.raw->data, col.len);
                     }
                     break;
