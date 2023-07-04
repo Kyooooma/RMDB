@@ -292,7 +292,7 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
  * @param tab_names select plan 目标的表
  * @param conds select plan 选取条件
  */
-std::shared_ptr<Plan> Planner::generate_select_plan(std::shared_ptr<Query> query, Context *context) {
+std::shared_ptr<Plan> Planner::generate_select_plan(std::shared_ptr<Query> query, Context *context, const std::shared_ptr<ast::Limit>& limit) {
     //逻辑优化
     query = logical_optimization(std::move(query), context);
 
@@ -300,7 +300,7 @@ std::shared_ptr<Plan> Planner::generate_select_plan(std::shared_ptr<Query> query
     auto sel_cols = query->cols;
     std::shared_ptr<Plan> plannerRoot = physical_optimization(query, context);
     plannerRoot = std::make_shared<ProjectionPlan>(T_Projection, std::move(plannerRoot),
-                                                   std::move(sel_cols));
+                                                   std::move(sel_cols), limit);
 
     return plannerRoot;
 }
@@ -384,7 +384,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
 
         std::shared_ptr<plannerInfo> root = std::make_shared<plannerInfo>(x);
         // 生成select语句的查询执行计划
-        std::shared_ptr<Plan> projection = generate_select_plan(std::move(query), context);
+        std::shared_ptr<Plan> projection = generate_select_plan(std::move(query), context, x->limit);
         plannerRoot = std::make_shared<DMLPlan>(T_select, projection, std::string(), std::vector<Value>(),
                                                 std::vector<Condition>(), std::vector<SetClause>());
     } else {

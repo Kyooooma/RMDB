@@ -21,7 +21,7 @@ using namespace ast;
 %define parse.error verbose
 
 // keywords
-%token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY SUM COUNT MAX MIN AS
+%token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY SUM COUNT MAX MIN AS LIMIT
 WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
@@ -53,7 +53,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP 
 %type <sv_orderby> order_clause
 %type <sv_orderbys> order_clauses opt_order_clause
 %type <sv_orderby_dir> opt_asc_desc
-
+%type <sv_limit> opt_limit_clause
 %%
 start:
         stmt ';'
@@ -151,9 +151,9 @@ dml:
     {
         $$ = std::make_shared<UpdateStmt>($2, $4, $5);
     }
-    |   SELECT selector FROM tableList optWhereClause opt_order_clause
+    |   SELECT selector FROM tableList optWhereClause opt_order_clause opt_limit_clause
     {
-        $$ = std::make_shared<SelectStmt>($2, $4, $5, $6);
+        $$ = std::make_shared<SelectStmt>($2, $4, $5, $6, $7);
     }
     ;
 
@@ -458,6 +458,20 @@ opt_order_clause:
     |   /* epsilon */ { /* ignore*/ }
     ;
 
+opt_limit_clause:
+    	LIMIT VALUE_INT ',' VALUE_INT
+    {
+	$$ = std::make_shared<Limit>($2,$4);
+    }
+    |	LIMIT VALUE_INT
+    {
+    	$$ = std::make_shared<Limit>(0,$2);
+    }
+    |   /* epsilon */
+    {
+    	$$ = std::make_shared<Limit>(0,-1);
+    }
+    ;
 
 order_clause:
       col  opt_asc_desc

@@ -22,9 +22,10 @@ private:
     std::vector<ColMeta> cols_;                     // 需要投影的字段
     size_t len_;                                    // 字段总长度
     std::vector<size_t> sel_idxs_;                  // 投影字段下标
-
+    std::shared_ptr<ast::Limit> limit;
+    int cnt;
 public:
-    ProjectionExecutor(std::unique_ptr<AbstractExecutor> prev, const std::vector<TabCol> &sel_cols) {
+    ProjectionExecutor(std::unique_ptr<AbstractExecutor> prev, const std::vector<TabCol> &sel_cols, std::shared_ptr<ast::Limit> &limit_) {
         prev_ = std::move(prev);
 
         int curr_offset = 0;
@@ -38,6 +39,8 @@ public:
             cols_.push_back(col);
         }
         len_ = curr_offset;
+        limit = std::move(limit_);
+        cnt = 0;
     }
 
     std::string getType() override { return "ProjectionExecutor"; };
@@ -50,6 +53,7 @@ public:
 
     void beginTuple() override {
         prev_->beginTuple();
+        for (int i = 0; i < limit->start && !prev_->is_end(); ++i) prev_->nextTuple();
     }
 
     void nextTuple() override {
@@ -59,6 +63,7 @@ public:
 
     std::unique_ptr<RmRecord> Next() override {
         assert(!is_end());
+        cnt++;
         auto proj_rec = std::make_unique<RmRecord>(len_);
         auto &prev_cols = prev_->cols();// 列数据
         auto prev_rec = prev_->Next();// 具体记录
@@ -70,7 +75,7 @@ public:
         return proj_rec;
     }
 
-    bool is_end() const override { return prev_->is_end(); }
+    bool is_end() const override { return prev_->is_end() || cnt == limit->len; }
 
     Rid &rid() override { return _abstract_rid; }
 
