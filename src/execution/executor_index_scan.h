@@ -231,11 +231,11 @@ public:
 
     bool is_end() const override{
         if(scan_->is_end()) return true;
-        auto rid = scan_->rid();
-        auto rec = fh_->get_record(rid, context_);
-        for(int i = 0; i < index_cnt; i++){
-            if(!eval_cond(cols_, conds_[i], rec.get())) return true;
-        }
+//        auto rid = scan_->rid();
+//        auto rec = fh_->get_record(rid, context_);
+//        for(int i = 0; i < index_cnt; i++){
+//            if(!eval_cond(cols_, conds_[i], rec.get())) return true;
+//        }
         return false;
     }
 
