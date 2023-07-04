@@ -40,9 +40,24 @@ public:
 
     std::string getType() override { return "DeleteExecutor"; };
 
+    void delete_index(RmRecord* rec){
+        // 删除索引
+        for (auto &index: tab_.indexes) {
+            auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+            char *key = new char[index.col_tot_len];
+            int offset = 0;
+            for (size_t j = 0; j < index.col_num; ++j) {
+                memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
+                offset += index.cols[j].len;
+            }
+            ih->delete_entry(key, context_->txn_);
+        }
+    }
+
     std::unique_ptr<RmRecord> Next() override {
         for(auto rid : rids_){
-            //tbd:: 删除索引
+            auto rec = fh_->get_record(rid, context_);
+            delete_index(rec.get());
             fh_->delete_record(rid, context_);
         }
         return nullptr;

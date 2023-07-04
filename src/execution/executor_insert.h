@@ -41,8 +41,9 @@ public:
     std::string getType() override { return "InsertExecutor"; };
 
     std::unique_ptr<RmRecord> Next() override {
-        // Make record buffer
+        int fail_pos = -1;
         RmRecord rec(fh_->get_file_hdr().record_size);
+        //获取数据
         for (size_t i = 0; i < values_.size(); i++) {
             auto &col = tab_.cols[i];
             auto &val = values_[i];
@@ -56,11 +57,11 @@ public:
             val.init_raw(col.len);
             memcpy(rec.data + col.offset, val.raw->data, col.len);
         }
-        // 插入记录
+        // 插入记录, 获取rid
         rid_ = fh_->insert_record(rec.data, context_);
-
         // 更新索引
-        for (auto &index: tab_.indexes) {
+        for (int i = 0; i < tab_.indexes.size(); i++) {
+            auto &index = tab_.indexes[i];
             auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
             char *key = new char[index.col_tot_len];
             int offset = 0;
@@ -68,8 +69,31 @@ public:
                 memcpy(key + offset, rec.data + index.cols[j].offset, index.cols[j].len);
                 offset += index.cols[j].len;
             }
-            ih->insert_entry(key, rid_, context_->txn_);
+            auto result = ih->insert_entry(key, rid_, context_->txn_);
+            if(!result.second){
+                //说明插入失败
+                fail_pos = i;
+                break;
+            }
         }
+
+        if(fail_pos != -1){
+            //说明插入失败, 将之前插入的索引删除
+            for (int i = 0; i < fail_pos; i++) {
+                auto index = tab_.indexes[i];
+                auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+                char *key = new char[index.col_tot_len];
+                int offset = 0;
+                for (size_t j = 0; j < index.col_num; ++j) {
+                    memcpy(key + offset, rec.data + index.cols[j].offset, index.cols[j].len);
+                    offset += index.cols[j].len;
+                }
+                ih->delete_entry(key, context_->txn_);
+            }
+            fh_->delete_record(rid_, context_);
+            throw RMDBError("Insert Error!!");
+        }
+
         return nullptr;
     }
 

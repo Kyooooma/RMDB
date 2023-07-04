@@ -374,7 +374,7 @@ void IxIndexHandle::insert_into_parent(IxNodeHandle *old_node, const char *key, 
  * @param transaction 事务指针
  * @return page_id_t 插入到的叶结点的page_no
  */
-page_id_t IxIndexHandle::insert_entry(const char *key, const Rid &value, Transaction *transaction) {
+std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Rid &value, Transaction *transaction) {
     // Todo:
     // 1. 查找key值应该插入到哪个叶子节点
     // 2. 在该叶子节点中插入键值对
@@ -382,11 +382,16 @@ page_id_t IxIndexHandle::insert_entry(const char *key, const Rid &value, Transac
     // 提示：记得unpin page；若当前叶子节点是最右叶子节点，则需要更新file_hdr_.last_leaf；记得处理并发的上锁
     std::scoped_lock lock{root_latch_};
     auto leaf = find_leaf_page(key, Operation::FIND, transaction).first;
+    int old_cnt = leaf->get_size();
     //插入前的最小值
     char *old_key = (char *) malloc(file_hdr_->col_tot_len_ * sizeof(char));
     if (leaf->get_size() > 0) memcpy(old_key, leaf->get_key(0), file_hdr_->col_tot_len_);
     // 插入数据
     int cnt = leaf->insert(key, value);
+    if(old_cnt == cnt){
+        //说明插入失败
+        return {leaf->get_page_id().page_no, false};
+    }
     //插入后的最小值
     char *new_key = (char *) malloc(file_hdr_->col_tot_len_ * sizeof(char));
     memcpy(new_key, leaf->get_key(0), file_hdr_->col_tot_len_);
@@ -424,7 +429,21 @@ page_id_t IxIndexHandle::insert_entry(const char *key, const Rid &value, Transac
     }
     free(old_key);
     free(new_key);
-    return res;
+    return {res, true};
+}
+
+bool IxIndexHandle::check_entry(const char *key, Transaction *transaction){
+    auto leaf = find_leaf_page(key, Operation::FIND, transaction).first;
+    auto pos = leaf->lower_bound(key);
+    if (pos < leaf->get_size()) {
+        char *now = leaf->get_key(pos);
+        int res = ix_compare(key, now, leaf->file_hdr->col_types_, leaf->file_hdr->col_lens_);
+        if (res == 0) {
+            //key重复
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

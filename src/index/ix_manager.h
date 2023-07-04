@@ -28,8 +28,8 @@ public:
 
     std::string get_index_name(const std::string &filename, const std::vector<std::string>& index_cols) {
         std::string index_name = filename;
-        for(size_t i = 0; i < index_cols.size(); ++i)
-            index_name += "_" + index_cols[i];
+        for(const auto & index_col : index_cols)
+            index_name += "_" + index_col;
         index_name += ".idx";
 
         return index_name;
@@ -37,8 +37,8 @@ public:
 
     std::string get_index_name(const std::string &filename, const std::vector<ColMeta>& index_cols) {
         std::string index_name = filename;
-        for(size_t i = 0; i < index_cols.size(); ++i)
-            index_name += "_" + index_cols[i].name;
+        for(const auto & index_col : index_cols)
+            index_name += "_" + index_col.name;
         index_name += ".idx";
 
         return index_name;

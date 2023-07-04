@@ -93,8 +93,12 @@ void SmManager::open_db(const std::string &db_name) {
     }
     std::ifstream ofs(DB_META_NAME);
     ofs >> db_;
-    for (auto [tab_name, tab_info]: db_.tabs_) {
+    for (auto &[tab_name, tab_info]: db_.tabs_) {
         fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
+        for(const auto& index : tab_info.indexes){
+            std::string ix_name = get_ix_manager()->get_index_name(tab_name, index.cols);
+            ihs_.emplace(ix_name, get_ix_manager()->open_index(tab_name, index.cols));
+        }
     }
 }
 
@@ -211,6 +215,14 @@ void SmManager::drop_table(const std::string &tab_name, Context *context) {
     if (!db_.is_table(tab_name)) {
         throw TableNotFoundError(tab_name);
     }
+    TabMeta &tab = db_.get_table(tab_name);
+    for(const auto& index : tab.indexes){
+        std::vector<std::string> col_names;
+        for(const auto& name : index.cols){
+            col_names.push_back(name.name);
+        }
+        drop_index(tab_name, col_names, context);
+    }
     if (fhs_.count(tab_name)) {// 说明被打开了
         rm_manager_->close_file(fhs_[tab_name].get());
         fhs_.erase(tab_name);
@@ -246,6 +258,36 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
     };
     tab.indexes.push_back(im);
     ihs_.emplace(ix_name, ix_manager_->open_index(tab_name, cols));
+    if(!fhs_.count(tab_name)){
+        //如果没有打开表文件则打开
+        fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
+    }
+    //将已有数据插入b+树中
+    auto rfh = fhs_[tab_name].get();
+    auto ih = ihs_[ix_name].get();
+    auto scan_ = std::make_unique<RmScan>(rfh);
+    bool is_fail = false;
+    while (!scan_->is_end()) {
+        auto rid_ = scan_->rid();
+        auto rec = rfh->get_record(rid_, context);
+        char *key = new char[tot_len];
+        int offset = 0;
+        for (auto & col : cols) {
+            memcpy(key + offset, rec->data + col.offset, col.len);
+            offset += col.len;
+        }
+        auto result = ih->insert_entry(key, rid_, context->txn_);
+        if(!result.second){
+            //说明不满足唯一性，插入失败，需要rollback
+            is_fail = true;
+            break;
+        }
+        scan_->next();
+    }
+    if(is_fail){
+        drop_index(tab_name, col_names, context);
+        return;
+    }
     flush_meta();
 }
 
@@ -268,6 +310,30 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<std::s
     auto pos = std::find(tab.indexes.begin(), tab.indexes.end(), im);
     tab.indexes.erase(pos);
     auto ix_name = ix_manager_->get_index_name(tab_name, cols);
+    if(!ihs_.count(ix_name)){
+        //如果没有打开则打开文件
+        ihs_.emplace(ix_name, ix_manager_->open_index(tab_name, cols));
+    }
+    if(!fhs_.count(tab_name)){
+        //如果没有打开表文件则打开
+        fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
+    }
+    //将已有数据从b+树中删除
+    auto rfh = fhs_[tab_name].get();
+    auto ih = ihs_[ix_name].get();
+    auto scan_ = std::make_unique<RmScan>(rfh);
+    while (!scan_->is_end()) {
+        auto rid_ = scan_->rid();
+        auto rec = rfh->get_record(rid_, context);
+        char *key = new char[tot_len];
+        int offset = 0;
+        for (auto & col : cols) {
+            memcpy(key + offset, rec->data + col.offset, col.len);
+            offset += col.len;
+        }
+        ih->delete_entry(key, context->txn_);
+        scan_->next();
+    }
     if (ihs_.count(ix_name)) {// 说明被打开了
         disk_manager_->close_file(ihs_[ix_name]->get_fd());
         ihs_.erase(ix_name);
@@ -291,7 +357,31 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<ColMet
     IndexMeta im = {tab_name, tot_len, (int) cols.size(), cols};
     auto pos = std::find(tab.indexes.begin(), tab.indexes.end(), im);
     tab.indexes.erase(pos);
-    auto ix_name = ix_manager_->get_index_name(tab_name, cols);
+    auto ix_name = ix_manager_->get_index_name(tab_name, im.cols);
+    if(!ihs_.count(ix_name)){
+        //如果没有打开则打开文件
+        ihs_.emplace(ix_name, ix_manager_->open_index(tab_name, im.cols));
+    }
+    if(!fhs_.count(tab_name)){
+        //如果没有打开表文件则打开
+        fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
+    }
+    //将已有数据从b+树中删除
+    auto rfh = fhs_[tab_name].get();
+    auto ih = ihs_[ix_name].get();
+    auto scan_ = std::make_unique<RmScan>(rfh);
+    while (!scan_->is_end()) {
+        auto rid_ = scan_->rid();
+        auto rec = rfh->get_record(rid_, context);
+        char *key = new char[tot_len];
+        int offset = 0;
+        for (auto & col : im.cols) {
+            memcpy(key + offset, rec->data + col.offset, col.len);
+            offset += col.len;
+        }
+        ih->delete_entry(key, context->txn_);
+        scan_->next();
+    }
     if (ihs_.count(ix_name)) {// 说明被打开了
         disk_manager_->close_file(ihs_[ix_name]->get_fd());
         ihs_.erase(ix_name);

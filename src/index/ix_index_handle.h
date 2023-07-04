@@ -197,7 +197,10 @@ public:
                                                    bool find_first = false);
 
     // for insert
-    page_id_t insert_entry(const char *key, const Rid &value, Transaction *transaction);
+    std::pair<page_id_t, bool> insert_entry(const char *key, const Rid &value, Transaction *transaction);
+
+    // for check insert
+    bool check_entry(const char *key, Transaction *transaction);
 
     IxNodeHandle *split(IxNodeHandle *node);
 
