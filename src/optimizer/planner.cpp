@@ -22,17 +22,57 @@ See the Mulan PSL v2 for more details. */
 #include "index/ix.h"
 #include "record_printer.h"
 
-// 目前的索引匹配规则为：完全匹配索引字段，且全部为单点查询，不会自动调整where条件的顺序
-bool Planner::get_index_cols(std::string tab_name, std::vector<Condition> curr_conds,
-                             std::vector<std::string> &index_col_names) {
+// 目前的索引匹配规则为：最左匹配原则，选取最多匹配的索引，会自动调整where条件的顺序
+bool Planner::get_index_cols(std::string tab_name, std::vector<Condition> &curr_conds, std::vector<std::string> &index_col_names) {
     index_col_names.clear();
-    for (auto &cond: curr_conds) {
-        if (cond.is_rhs_val && cond.op == OP_EQ && cond.lhs_col.tab_name.compare(tab_name) == 0)
-            index_col_names.push_back(cond.lhs_col.col_name);
+    std::map<std::string, std::pair<int, int>> mp; // 存储列名 -> 比较方法、curr_conds中所在下标
+    for(int i = 0; i < curr_conds.size(); i++){
+        auto cond = curr_conds[i];
+        if(cond.lhs_col.tab_name != tab_name || !cond.is_rhs_val) continue;
+        int op = -1;
+        if(cond.op == OP_EQ) op = 1;
+        else if(cond.op == OP_GT || cond.op == OP_GE) op = 0;
+        else if(cond.op == OP_LE || cond.op == OP_LT) op = 2;
+        if(op == -1) continue;
+        if(mp.count(cond.lhs_col.col_name) && op == 2) continue;
+        mp[cond.lhs_col.col_name] = {op, i};
     }
     TabMeta &tab = sm_manager_->db_.get_table(tab_name);
-    if (tab.is_index(index_col_names)) return true;
-    return false;
+    int mx = 0;//最左匹配中最多匹配数
+    std::vector<Condition> res;//最左匹配时条件顺序
+    std::vector<int> ids;//最左匹配时下标顺序
+    std::vector<ColMeta> cols;//最左匹配时index列
+    for(const auto& index : tab.indexes){
+        int cnt = 0;
+        std::vector<int> tmp;
+        for(const auto& col : index.cols){
+            if(!mp.count(col.name)) break;
+            std::pair<int, int> val = mp[col.name];
+            cnt++;
+            tmp.push_back(val.second);
+            if(!val.first) break;// 说明是范围查询
+        }
+        if(cnt > mx){// 匹配数更多
+            mx = cnt;
+            ids = tmp;
+            cols = index.cols;
+        }
+    }
+    if(!mx) return false;
+    std::unordered_map<int, bool> vis;
+    for(int i : ids){
+        res.push_back(curr_conds[i]);
+        vis[i] = true;
+    }
+    for(int i = 0; i < curr_conds.size(); i++){
+        if(vis.count(i)) continue;
+        res.push_back(curr_conds[i]);
+    }
+    curr_conds = res;
+    for(const auto& col : cols){
+        index_col_names.push_back(col.name);
+    }
+    return true;
 }
 
 /**
@@ -266,13 +306,22 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
         const auto &sel_tab_cols = sm_manager_->db_.get_table(sel_tab_name).cols;
         all_cols.insert(all_cols.end(), sel_tab_cols.begin(), sel_tab_cols.end());
     }
-    TabCol sel_col;
-    for (auto &col: all_cols) {
-        if (col.name.compare(x->order->cols->col_name) == 0)
-            sel_col = {.tab_name = col.tab_name, .col_name = col.name};
+    std::vector<TabCol> sel_cols;
+    for (auto &order : x->order) {
+        for (auto &col: all_cols) {
+            if (col.name == order->cols->col_name) {
+                TabCol sel_col = {.tab_name = col.tab_name, .col_name = col.name};
+                sel_cols.push_back(sel_col);
+            }
+        }
     }
-    return std::make_shared<SortPlan>(T_Sort, std::move(plan), sel_col,
-                                      x->order->orderby_dir == ast::OrderBy_DESC);
+    std::vector<bool> is_desc;
+    is_desc.reserve(x->order.size());
+    for (auto &order : x->order) {
+        is_desc.push_back(order->orderby_dir == ast::OrderBy_DESC);
+    }
+    return std::make_shared<SortPlan>(T_Sort, std::move(plan), sel_cols,
+                                      is_desc);
 }
 
 
@@ -283,7 +332,7 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
  * @param tab_names select plan 目标的表
  * @param conds select plan 选取条件
  */
-std::shared_ptr<Plan> Planner::generate_select_plan(std::shared_ptr<Query> query, Context *context) {
+std::shared_ptr<Plan> Planner::generate_select_plan(std::shared_ptr<Query> query, Context *context, const std::shared_ptr<ast::Limit>& limit) {
     //逻辑优化
     query = logical_optimization(std::move(query), context);
 
@@ -291,7 +340,7 @@ std::shared_ptr<Plan> Planner::generate_select_plan(std::shared_ptr<Query> query
     auto sel_cols = query->cols;
     std::shared_ptr<Plan> plannerRoot = physical_optimization(query, context);
     plannerRoot = std::make_shared<ProjectionPlan>(T_Projection, std::move(plannerRoot),
-                                                   std::move(sel_cols));
+                                                   std::move(sel_cols), limit);
 
     return plannerRoot;
 }
@@ -320,6 +369,10 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
     } else if (auto x = std::dynamic_pointer_cast<ast::CreateIndex>(query->parse)) {
         // create index;
         plannerRoot = std::make_shared<DDLPlan>(T_CreateIndex, x->tab_name, x->col_names, std::vector<ColDef>());
+    } else if (auto x = std::dynamic_pointer_cast<ast::ShowIndex>(query->parse)) {
+        // show index;
+        plannerRoot = std::make_shared<DDLPlan>(T_ShowIndex, x->tab_name, std::vector<std::string>(),
+                                                std::vector<ColDef>());
     } else if (auto x = std::dynamic_pointer_cast<ast::DropIndex>(query->parse)) {
         // drop index
         plannerRoot = std::make_shared<DDLPlan>(T_DropIndex, x->tab_name, x->col_names, std::vector<ColDef>());
@@ -371,7 +424,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
 
         std::shared_ptr<plannerInfo> root = std::make_shared<plannerInfo>(x);
         // 生成select语句的查询执行计划
-        std::shared_ptr<Plan> projection = generate_select_plan(std::move(query), context);
+        std::shared_ptr<Plan> projection = generate_select_plan(std::move(query), context, x->limit);
         plannerRoot = std::make_shared<DMLPlan>(T_select, projection, std::string(), std::vector<Value>(),
                                                 std::vector<Condition>(), std::vector<SetClause>());
     } else {

@@ -143,7 +143,7 @@ public:
         } else {
             cmp = ix_compare(lhs, rhs, rhs_type, lhs_col->len);
         }
-        std::cerr << cmp << '\n';
+//        std::cerr << cmp << '\n';
         if (cond.op == OP_EQ) {
             return cmp == 0;
         } else if (cond.op == OP_NE) {

@@ -102,6 +102,12 @@ struct CreateIndex : public TreeNode {
             tab_name(std::move(tab_name_)), col_names(std::move(col_names_)) {}
 };
 
+struct ShowIndex : public TreeNode {
+    std::string tab_name;
+
+    ShowIndex(std::string tab_name_) : tab_name(std::move(tab_name_)) {}
+};
+
 struct DropIndex : public TreeNode {
     std::string tab_name;
     std::vector<std::string> col_names;
@@ -173,9 +179,19 @@ struct DatetimeLit : public Value {
 struct Col : public Expr {
     std::string tab_name;
     std::string col_name;
+    std::string as_name;
+    std::string aggregate;
 
     Col(std::string tab_name_, std::string col_name_) :
-            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)) {}
+            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)) {};
+
+    Col(std::string tab_name_, std::string col_name_, std::string as_name_) :
+            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)),
+            as_name(std::move(as_name_)) {};
+
+    Col(std::string tab_name_, std::string col_name_, std::string as_name_, std::string aggregate_) :
+            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)),
+            as_name(std::move(as_name_)), aggregate(std::move(aggregate_)) {}
 };
 
 struct SetClause : public TreeNode {
@@ -201,6 +217,14 @@ struct OrderBy : public TreeNode
     OrderByDir orderby_dir;
     OrderBy( std::shared_ptr<Col> cols_, OrderByDir orderby_dir_) :
        cols(std::move(cols_)), orderby_dir(orderby_dir_) {}
+};
+
+struct Limit : public TreeNode
+{
+    int start;
+    int len;
+    Limit( int start_, int len_):
+        start(start_), len(len_){}
 };
 
 struct InsertStmt : public TreeNode {
@@ -249,16 +273,19 @@ struct SelectStmt : public TreeNode {
 
     
     bool has_sort;
-    std::shared_ptr<OrderBy> order;
+    std::vector<std::shared_ptr<OrderBy>> order;
+
+    std::shared_ptr<Limit> limit;
 
 
     SelectStmt(std::vector<std::shared_ptr<Col>> cols_,
                std::vector<std::string> tabs_,
                std::vector<std::shared_ptr<BinaryExpr>> conds_,
-               std::shared_ptr<OrderBy> order_) :
+               std::vector<std::shared_ptr<OrderBy>> order_,
+               std::shared_ptr<Limit> limit_) :
             cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)), 
-            order(std::move(order_)) {
-                has_sort = (bool)order;
+            order(std::move(order_)), limit(std::move(limit_)) {
+                has_sort = !order.empty();
             }
 };
 
@@ -296,6 +323,9 @@ struct SemValue {
     std::vector<std::shared_ptr<BinaryExpr>> sv_conds;
 
     std::shared_ptr<OrderBy> sv_orderby;
+    std::vector<std::shared_ptr<OrderBy>> sv_orderbys;
+
+    std::shared_ptr<Limit> sv_limit;
 };
 
 extern std::shared_ptr<ast::TreeNode> parse_tree;

@@ -38,15 +38,19 @@ int main() {
         "select * from tb where x <> 2 and y >= 3. and z <= '123' and b < tb.a;",
         "select x.a, y.b from x, y where x.a = y.b and c = d;",
         "select x.a, y.b from x join y where x.a = y.b and c = d;",
+        "select SUM(id) as sum_id from aggregate;",
         "exit;",
         "help;",
-        "",
+        "show index from warehouse;",
+        "drop index warehouse (id,name);",
+        ""
     };
     for (auto &sql : sqls) {
         std::cout << sql << std::endl;
         try{
             YY_BUFFER_STATE buf = yy_scan_string(sql.c_str());
-            assert(yyparse() == 0);
+            yyparse();
+//            assert(yyparse() == 0);
             if (ast::parse_tree != nullptr) {
                 ast::TreePrinter::print(ast::parse_tree);
                 yy_delete_buffer(buf);

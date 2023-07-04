@@ -18,18 +18,18 @@ See the Mulan PSL v2 for more details. */
 #include "ix_index_handle.h"
 
 class IxManager {
-   private:
+private:
     DiskManager *disk_manager_;
     BufferPoolManager *buffer_pool_manager_;
 
-   public:
+public:
     IxManager(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager)
-        : disk_manager_(disk_manager), buffer_pool_manager_(buffer_pool_manager) {}
+            : disk_manager_(disk_manager), buffer_pool_manager_(buffer_pool_manager) {}
 
     std::string get_index_name(const std::string &filename, const std::vector<std::string>& index_cols) {
         std::string index_name = filename;
-        for(size_t i = 0; i < index_cols.size(); ++i) 
-            index_name += "_" + index_cols[i];
+        for(const auto & index_col : index_cols)
+            index_name += "_" + index_col;
         index_name += ".idx";
 
         return index_name;
@@ -37,8 +37,8 @@ class IxManager {
 
     std::string get_index_name(const std::string &filename, const std::vector<ColMeta>& index_cols) {
         std::string index_name = filename;
-        for(size_t i = 0; i < index_cols.size(); ++i) 
-            index_name += "_" + index_cols[i].name;
+        for(const auto & index_col : index_cols)
+            index_name += "_" + index_col.name;
         index_name += ".idx";
 
         return index_name;
@@ -80,14 +80,14 @@ class IxManager {
 
         // Create file header and write to file
         IxFileHdr* fhdr = new IxFileHdr(IX_NO_PAGE, IX_INIT_NUM_PAGES, IX_INIT_ROOT_PAGE,
-                                col_num, col_tot_len, btree_order, (btree_order + 1) * col_tot_len,
-                                IX_INIT_ROOT_PAGE, IX_INIT_ROOT_PAGE);
+                                        col_num, col_tot_len, btree_order, (btree_order + 1) * col_tot_len,
+                                        IX_INIT_ROOT_PAGE, IX_INIT_ROOT_PAGE);
         for(int i = 0; i < col_num; ++i) {
             fhdr->col_types_.push_back(index_cols[i].type);
             fhdr->col_lens_.push_back(index_cols[i].len);
         }
         fhdr->update_tot_len();
-        
+
         char* data = new char[fhdr->tot_len_];
         fhdr->serialize(data);
 
@@ -101,12 +101,12 @@ class IxManager {
             memset(page_buf, 0, PAGE_SIZE);
             auto phdr = reinterpret_cast<IxPageHdr *>(page_buf);
             *phdr = {
-                .next_free_page_no = IX_NO_PAGE,
-                .parent = IX_NO_PAGE,
-                .num_key = 0,
-                .is_leaf = true,
-                .prev_leaf = IX_INIT_ROOT_PAGE,
-                .next_leaf = IX_INIT_ROOT_PAGE,
+                    .next_free_page_no = IX_NO_PAGE,
+                    .parent = IX_NO_PAGE,
+                    .num_key = 0,
+                    .is_leaf = true,
+                    .prev_leaf = IX_INIT_ROOT_PAGE,
+                    .next_leaf = IX_INIT_ROOT_PAGE,
             };
             disk_manager_->write_page(fd, IX_LEAF_HEADER_PAGE, page_buf, PAGE_SIZE);
         }
@@ -116,12 +116,12 @@ class IxManager {
             memset(page_buf, 0, PAGE_SIZE);
             auto phdr = reinterpret_cast<IxPageHdr *>(page_buf);
             *phdr = {
-                .next_free_page_no = IX_NO_PAGE,
-                .parent = IX_NO_PAGE,
-                .num_key = 0,
-                .is_leaf = true,
-                .prev_leaf = IX_LEAF_HEADER_PAGE,
-                .next_leaf = IX_LEAF_HEADER_PAGE,
+                    .next_free_page_no = IX_NO_PAGE,
+                    .parent = IX_NO_PAGE,
+                    .num_key = 0,
+                    .is_leaf = true,
+                    .prev_leaf = IX_LEAF_HEADER_PAGE,
+                    .next_leaf = IX_LEAF_HEADER_PAGE,
             };
             // Must write PAGE_SIZE here in case of future fetch_node()
             disk_manager_->write_page(fd, IX_INIT_ROOT_PAGE, page_buf, PAGE_SIZE);

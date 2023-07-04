@@ -54,6 +54,23 @@ struct IndexMeta {
         return os;
     }
 
+    bool operator == (const IndexMeta &p) const{
+        if(p.tab_name != tab_name) return false;
+        if(p.col_tot_len != col_tot_len) return false;
+        if(p.col_num != col_num) return false;
+        for(int i = 0; i < col_num; i++){
+            auto x = cols[i];
+            auto y = p.cols[i];
+            if(x.index != y.index) return false;
+            if(x.name != y.name) return false;
+            if(x.tab_name != y.tab_name) return false;
+            if(x.type != y.type) return false;
+            if(x.offset != y.offset) return false;
+            if(x.len != y.len) return false;
+        }
+        return true;
+    }
+
     friend std::istream &operator>>(std::istream &is, IndexMeta &index) {
         is >> index.tab_name >> index.col_tot_len >> index.col_num;
         for(int i = 0; i < index.col_num; ++i) {
@@ -90,7 +107,7 @@ struct TabMeta {
             if(index.col_num == col_names.size()) {
                 size_t i = 0;
                 for(; i < index.col_num; ++i) {
-                    if(index.cols[i].name.compare(col_names[i]) != 0)
+                    if(index.cols[i].name != col_names[i])
                         break;
                 }
                 if(i == index.col_num) return true;
@@ -107,7 +124,7 @@ struct TabMeta {
             auto& index_cols = (*index).cols;
             size_t i = 0;
             for(; i < col_names.size(); ++i) {
-                if(index_cols[i].name.compare(col_names[i]) != 0) 
+                if(index_cols[i].name != col_names[i])
                     break;
             }
             if(i == col_names.size()) return index;

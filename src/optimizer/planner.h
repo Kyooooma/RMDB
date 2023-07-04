@@ -45,12 +45,9 @@ private:
 
     std::shared_ptr<Plan> generate_sort_plan(std::shared_ptr<Query> query, std::shared_ptr<Plan> plan);
 
-    std::shared_ptr<Plan> generate_select_plan(std::shared_ptr<Query> query, Context *context);
-
-
     // int get_indexNo(std::string tab_name, std::vector<Condition> curr_conds);
     bool
-    get_index_cols(std::string tab_name, std::vector<Condition> curr_conds, std::vector<std::string> &index_col_names);
+    get_index_cols(std::string tab_name, std::vector<Condition> &curr_conds, std::vector<std::string> &index_col_names);
 
     ColType interp_sv_type(ast::SvType sv_type) {
         std::map<ast::SvType, ColType> m = {
@@ -61,4 +58,7 @@ private:
                 {ast::SV_TYPE_BIGINT, TYPE_BIGINT}};
         return m.at(sv_type);
     }
+
+    std::shared_ptr<Plan>
+    generate_select_plan(std::shared_ptr<Query> query, Context *context, const std::shared_ptr<ast::Limit>& limit);
 };

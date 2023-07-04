@@ -27,6 +27,7 @@ typedef enum PlanTag{
     T_CreateTable,
     T_DropTable,
     T_CreateIndex,
+    T_ShowIndex,
     T_DropIndex,
     T_Insert,
     T_Update,
@@ -103,32 +104,34 @@ class JoinPlan : public Plan
 class ProjectionPlan : public Plan
 {
     public:
-        ProjectionPlan(PlanTag tag, std::shared_ptr<Plan> subplan, std::vector<TabCol> sel_cols)
+        ProjectionPlan(PlanTag tag, std::shared_ptr<Plan> subplan, std::vector<TabCol> sel_cols, std::shared_ptr<ast::Limit> limit)
         {
             Plan::tag = tag;
             subplan_ = std::move(subplan);
             sel_cols_ = std::move(sel_cols);
+            limit_ = std::move(limit);
         }
         ~ProjectionPlan(){}
         std::shared_ptr<Plan> subplan_;
         std::vector<TabCol> sel_cols_;
+        std::shared_ptr<ast::Limit> limit_;
         
 };
 
 class SortPlan : public Plan
 {
     public:
-        SortPlan(PlanTag tag, std::shared_ptr<Plan> subplan, TabCol sel_col, bool is_desc)
+        SortPlan(PlanTag tag, std::shared_ptr<Plan> subplan, std::vector<TabCol> sel_col, std::vector<bool> is_desc)
         {
             Plan::tag = tag;
             subplan_ = std::move(subplan);
-            sel_col_ = sel_col;
-            is_desc_ = is_desc;
+            sel_col_ = std::move(sel_col);
+            is_desc_ = std::move(is_desc);
         }
         ~SortPlan(){}
         std::shared_ptr<Plan> subplan_;
-        TabCol sel_col_;
-        bool is_desc_;
+        std::vector<TabCol> sel_col_;
+        std::vector<bool> is_desc_;
         
 };
 
