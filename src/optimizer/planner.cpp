@@ -267,8 +267,8 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
         all_cols.insert(all_cols.end(), sel_tab_cols.begin(), sel_tab_cols.end());
     }
     std::vector<TabCol> sel_cols;
-    for (auto &col: all_cols) {
-        for (auto &order : x->order) {
+    for (auto &order : x->order) {
+        for (auto &col: all_cols) {
             if (col.name == order->cols->col_name) {
                 TabCol sel_col = {.tab_name = col.tab_name, .col_name = col.name};
                 sel_cols.push_back(sel_col);

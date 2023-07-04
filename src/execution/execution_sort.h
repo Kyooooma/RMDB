@@ -94,23 +94,31 @@ class SortExecutor : public AbstractExecutor {
             if (col.type == TYPE_INT) {
                 int value_a = *(int *) rec_buf_a;
                 int value_b = *(int *) rec_buf_b;
-                if (value_a == value_b) continue;
+                if (value_a == value_b) {
+                    cnt++;
+                    continue;
+                }
                 if (is_desc_[cnt]) return value_a > value_b;
                 else return value_a < value_b;
             } else if (col.type == TYPE_FLOAT) {
                 double value_a = *(double *) rec_buf_a;
                 double value_b = *(double *) rec_buf_b;
-                if (value_a == value_b) continue;
+                if (value_a == value_b) {
+                    cnt++;
+                    continue;
+                }
                 if (is_desc_[cnt]) return value_a > value_b;
                 else return value_a < value_b;
             } else if (col.type == TYPE_STRING) {
                 std::string value_a = std::string((char *) rec_buf_a, col.len);
                 std::string value_b = std::string((char *) rec_buf_b, col.len);
-                if (value_a == value_b) continue;
+                if (value_a == value_b) {
+                    cnt++;
+                    continue;
+                }
                 if (is_desc_[cnt]) return value_a > value_b;
                 else return value_a < value_b;
             }
-            cnt++;
         }
         return true;
     }
