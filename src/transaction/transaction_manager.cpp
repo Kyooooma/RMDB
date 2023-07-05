@@ -50,7 +50,8 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     for(auto i : *lock_set){
         lock_manager_->unlock(txn, i);
     }
-    //释放事务相关资源，eg.锁集  TBD
+    //释放事务相关资源，eg.锁集
+    txn->clear();
     // 4. 把事务日志刷入磁盘中
     log_manager->flush_log_to_disk();
     // 5. 更新事务状态
@@ -135,7 +136,8 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
     for(auto i : *lock_set){
         lock_manager_->unlock(txn, i);
     }
-    //释放事务相关资源，eg.锁集  TBD
+    //释放事务相关资源，eg.锁集
+    txn->clear();
     // 4. 把事务日志刷入磁盘中
     log_manager->flush_log_to_disk();
     // 5. 更新事务状态
