@@ -28,7 +28,6 @@ private:
     std::string tab_name_;
     std::vector<SetClause> set_clauses_;
     SmManager *sm_manager_;
-    std::vector<char *> deletes{}, inserts{};
 
 public:
     UpdateExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<SetClause> set_clauses,
@@ -50,7 +49,7 @@ public:
 
     size_t tupleLen() const override { return len_; };
 
-    void delete_index(RmRecord* rec, int f){
+    void delete_index(RmRecord* rec){
         // 删除索引
         for (auto &index: tab_.indexes) {
             auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
@@ -63,15 +62,9 @@ public:
             ih->delete_entry(key, context_->txn_);
             free(key);
         }
-        if(f){
-            char *key = new char[tupleLen()];
-            memcpy(key, rec->data, tupleLen());
-            deletes.push_back(key);
-            free(key);
-        }
     }
 
-    bool insert_index(RmRecord* rec, Rid rid_, int f){
+    bool insert_index(RmRecord* rec, Rid rid_){
         // 插入索引
         int fail_p = -1;
         for (int i = 0; i < tab_.indexes.size(); i++) {
@@ -107,12 +100,6 @@ public:
             }
             return false;
         }
-        if(f){
-            char *key = new char[tupleLen()];
-            memcpy(key, rec->data, tupleLen());
-            inserts.push_back(key);
-            free(key);
-        }
         return true;
     }
 
@@ -124,13 +111,15 @@ public:
             mp[i.lhs] = col;
         }
         bool is_fail = false;
+        int upd_cnt = 0;
         for (auto rid: rids_) {
             //查找记录
             std::unique_ptr<RmRecord> rec = fh_->get_record(rid, context_);
-            delete_index(rec.get(), 1);
+            delete_index(rec.get());
             //更新事务
             auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *rec);
             context_->txn_->append_write_record(wr);
+            upd_cnt++;
             for (const auto &i: set_clauses_) {
                 auto col = mp[i.lhs];
                 auto value = i.rhs;
@@ -145,8 +134,17 @@ public:
                 //更新记录数据
                 memcpy(rec->data + col.offset, value.raw->data, col.len);
             }
-            if(!insert_index(rec.get(), rid, 1)){
+            if(!insert_index(rec.get(), rid)){
                 is_fail = true;
+                auto last = context_->txn_->get_last_write_record();
+                auto type = last->GetWriteType();
+                assert(type == WType::UPDATE_TUPLE);
+                auto rid_ = last->GetRid();
+                auto tab_name = last->GetTableName();
+                auto rec_ = last->GetRecord();
+                insert_index(&rec_, rid_);
+                upd_cnt--;
+                context_->txn_->delete_write_record();
                 break;
             }
             //更新记录
@@ -154,25 +152,21 @@ public:
         }
         if(is_fail){
             //插入失败
-            for(int j = 0; j < deletes.size(); j++){
-                auto rid = rids_[j];
-                auto old_rec = deletes[j];
-                if(j < inserts.size()){
-                    auto now_rec = inserts[j];
-                    RmRecord now_rec_ = RmRecord(tupleLen(), now_rec);
-                    delete_index(&now_rec_, 0);
-                }
-                RmRecord old_rec_ = RmRecord(tupleLen(), old_rec);
-                assert(insert_index(&old_rec_, rid, 0));
-                fh_->update_record(rid, old_rec, context_);
+            while(upd_cnt--){
+                auto last = context_->txn_->get_last_write_record();
+                auto type = last->GetWriteType();
+                assert(type == WType::UPDATE_TUPLE);
+                auto rid_ = last->GetRid();
+                auto tab_name = last->GetTableName();
+                auto rec_ = last->GetRecord();
+                auto now_rec = fh_->get_record(rid_, context_);
+                delete_index(now_rec.get());
+                insert_index(&rec_, rid_);
+                fh_->update_record(rid_, rec_.data, context_);
                 context_->txn_->delete_write_record();
             }
-            deletes.clear();
-            inserts.clear();
             throw RMDBError("update error!!");
         }
-        deletes.clear();
-        inserts.clear();
         return nullptr;
     }
 
