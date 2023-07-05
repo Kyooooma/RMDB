@@ -21,8 +21,7 @@ class SortExecutor : public AbstractExecutor {
     std::vector<ColMeta> cols_;                              // 框架中只支持一个键排序，需要自行修改数据结构支持多个键排序
     size_t tuple_num;
     std::vector<bool> is_desc_;
-    std::vector<size_t> used_tuple;
-    std::unique_ptr<RmRecord> current_tuple;
+    std::vector<std::unique_ptr<RmRecord>> tuples;
 
    public:
     SortExecutor(std::unique_ptr<AbstractExecutor> prev, const std::vector<TabCol>& sel_cols, std::vector<bool> is_desc) {
@@ -32,8 +31,7 @@ class SortExecutor : public AbstractExecutor {
         }
         is_desc_ = std::move(is_desc);
         tuple_num = 0;
-        used_tuple.clear();
-        current_tuple = nullptr;
+        tuples.clear();
     }
 
     std::string getType() override { return "SortExecutor"; };
@@ -43,83 +41,61 @@ class SortExecutor : public AbstractExecutor {
     }
     void beginTuple() override {
         prev_->beginTuple();
-        int cnt = 0;
-        int now = -1;
-        current_tuple = nullptr;
-        while (!prev_->is_end()) {;
-            if (cmp(prev_->Next(), current_tuple)) {
-                current_tuple = prev_->Next();
-                now = cnt;
-            }
+        while (!prev_->is_end()) {
+            tuples.push_back(prev_->Next());
             prev_->nextTuple();
-            cnt++;
         }
-        tuple_num++;
-        used_tuple.push_back(now);
+        std::sort(tuples.begin(), tuples.end(), [&](std::unique_ptr<RmRecord> &a, std::unique_ptr<RmRecord> &b) {
+            if (b == nullptr) {
+                return true;
+            }
+            int cnt = 0;
+            for (auto &col: cols_) {
+                std::string col_str;
+                char *rec_buf_a = a->data + col.offset;
+                char *rec_buf_b = b->data + col.offset;
+                if (col.type == TYPE_INT) {
+                    int value_a = *(int *) rec_buf_a;
+                    int value_b = *(int *) rec_buf_b;
+                    if (value_a == value_b) {
+                        cnt++;
+                        continue;
+                    }
+                    if (is_desc_[cnt]) return value_a > value_b;
+                    else return value_a < value_b;
+                } else if (col.type == TYPE_FLOAT) {
+                    double value_a = *(double *) rec_buf_a;
+                    double value_b = *(double *) rec_buf_b;
+                    if (value_a == value_b) {
+                        cnt++;
+                        continue;
+                    }
+                    if (is_desc_[cnt]) return value_a > value_b;
+                    else return value_a < value_b;
+                } else if (col.type == TYPE_STRING) {
+                    std::string value_a = std::string((char *) rec_buf_a, col.len);
+                    std::string value_b = std::string((char *) rec_buf_b, col.len);
+                    if (value_a == value_b) {
+                        cnt++;
+                        continue;
+                    }
+                    if (is_desc_[cnt]) return value_a > value_b;
+                    else return value_a < value_b;
+                }
+            }
+            return false;
+        });
+        tuple_num = 0;
     }
 
     void nextTuple() override {
-        prev_->beginTuple();
-        int cnt = 0;
-        int now = -1;
-        current_tuple = nullptr;
-        while (!prev_->is_end()) {
-            if (std::find(used_tuple.begin(), used_tuple.end(),cnt) == used_tuple.end() && cmp(prev_->Next(), current_tuple)) {
-                current_tuple = prev_->Next();
-                now = cnt;
-            }
-            prev_->nextTuple();
-            cnt++;
-        }
         tuple_num++;
-        used_tuple.push_back(now);
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        return std::move(current_tuple);
+        return std::move(tuples[tuple_num]);
     }
 
     Rid &rid() override { return _abstract_rid; }
-    bool is_end() const {return used_tuple.back() == -1; };
-   private:
-    bool cmp(std::unique_ptr<RmRecord> a, std::unique_ptr<RmRecord> &b) {
-        if (b == nullptr) {
-            return true;
-        }
-        int cnt = 0;
-        for (auto &col: cols_) {
-            std::string col_str;
-            char *rec_buf_a = a->data + col.offset;
-            char *rec_buf_b = b->data + col.offset;
-            if (col.type == TYPE_INT) {
-                int value_a = *(int *) rec_buf_a;
-                int value_b = *(int *) rec_buf_b;
-                if (value_a == value_b) {
-                    cnt++;
-                    continue;
-                }
-                if (is_desc_[cnt]) return value_a > value_b;
-                else return value_a < value_b;
-            } else if (col.type == TYPE_FLOAT) {
-                double value_a = *(double *) rec_buf_a;
-                double value_b = *(double *) rec_buf_b;
-                if (value_a == value_b) {
-                    cnt++;
-                    continue;
-                }
-                if (is_desc_[cnt]) return value_a > value_b;
-                else return value_a < value_b;
-            } else if (col.type == TYPE_STRING) {
-                std::string value_a = std::string((char *) rec_buf_a, col.len);
-                std::string value_b = std::string((char *) rec_buf_b, col.len);
-                if (value_a == value_b) {
-                    cnt++;
-                    continue;
-                }
-                if (is_desc_[cnt]) return value_a > value_b;
-                else return value_a < value_b;
-            }
-        }
-        return true;
-    }
+    bool is_end() const {return tuple_num == tuples.size(); };
 };
