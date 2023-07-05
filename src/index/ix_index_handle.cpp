@@ -39,14 +39,14 @@ int IxNodeHandle::lower_bound(const char *target) const {
 /**
  * @brief 在当前node中查找第一个>target的key_idx
  *
- * @return key_idx，范围为[1,num_key)，如果返回的key_idx=num_key，则表示target大于等于最后一个key
+ * @return key_idx，范围为[0,num_key)，如果返回的key_idx=num_key，则表示target大于等于最后一个key
  * @note 注意此处的范围从1开始
  */
 int IxNodeHandle::upper_bound(const char *target) const {
     // Todo:
     // 查找当前节点中第一个大于target的key，并返回key的位置给上层
     // 提示: 可以采用多种查找方式：顺序遍历、二分查找等；使用ix_compare()函数进行比较
-    int l = 1, r = get_size() - 1;
+    int l = 0, r = get_size() - 1;
     while (l <= r) {
         int mid = (l + r) >> 1;
         char *now = get_key(mid);
@@ -101,6 +101,7 @@ page_id_t IxNodeHandle::internal_lookup(const char *key) {
     // 2. 获取该孩子节点（子树）所在页面的编号
     // 3. 返回页面编号
     int key_idx = upper_bound(key) - 1;
+    key_idx = std::max(key_idx, 0);
     return value_at(key_idx);
 }
 
@@ -691,6 +692,16 @@ Iid IxIndexHandle::lower_bound(const char *key) {
     int key_idx = node->lower_bound(key);
 
     Iid iid = {.page_no = node->get_page_no(), .slot_no = key_idx};
+    if(key_idx == node->get_size()){
+        // 说明该叶子节点不存在满足条件的值，需要找下一个叶子节点
+        if(node->get_page_id().page_no == file_hdr_->last_leaf_){
+            //说明是最后一个叶子了
+            iid = leaf_end();
+        }else{
+            //直接取下一个叶子的第一个
+            iid = {.page_no = node->get_next_leaf(), .slot_no = 0};
+        }
+    }
 
     // unpin leaf node
     buffer_pool_manager_->unpin_page(node->get_page_id(), false);
@@ -707,12 +718,16 @@ Iid IxIndexHandle::upper_bound(const char *key) {
     IxNodeHandle *node = find_leaf_page(key, Operation::FIND, nullptr).first;
     int key_idx = node->upper_bound(key);
 
-    Iid iid{};
-    if (key_idx == node->get_size()) {
-        // 这种情况无法根据iid找到rid，即后续无法调用ih->get_rid(iid)
-        iid = leaf_end();
-    } else {
-        iid = {.page_no = node->get_page_no(), .slot_no = key_idx};
+    Iid iid = {.page_no = node->get_page_no(), .slot_no = key_idx};
+    if(key_idx == node->get_size()){
+        // 说明该叶子节点不存在满足条件的值，需要找下一个叶子节点
+        if(node->get_page_id().page_no == file_hdr_->last_leaf_){
+            //说明是最后一个叶子了
+            iid = leaf_end();
+        }else{
+            //直接取下一个叶子的第一个
+            iid = {.page_no = node->get_next_leaf(), .slot_no = 0};
+        }
     }
 
     // unpin leaf node

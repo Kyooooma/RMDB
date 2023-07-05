@@ -71,15 +71,24 @@ class BPlusTreeTests : public ::testing::Test {
         if (chdir(TEST_DB_NAME.c_str()) < 0) {
             throw UnixError();
         }
-        // 如果测试文件存在，则先删除原文件（最后留下来的文件存的是最后一个测试点的数据）
-        if (ix_manager_->exists(TEST_FILE_NAME, index_no)) {
-            ix_manager_->destroy_index(TEST_FILE_NAME, index_no);
+        std::vector<ColMeta> cols;
+        ColMeta col = {
+                .tab_name = TEST_FILE_NAME,
+                .name = std::to_string(index_no),
+                .type = TYPE_INT,
+                .len = sizeof(int),
+                .offset = 0,
+                .index = false,
+        };
+        cols.push_back(col);
+        if (ix_manager_->exists(TEST_FILE_NAME, cols)) {
+            ix_manager_->destroy_index(TEST_FILE_NAME, cols);
         }
         // 创建测试文件
-        ix_manager_->create_index(TEST_FILE_NAME, index_no, TYPE_INT, sizeof(int));
-        assert(ix_manager_->exists(TEST_FILE_NAME, index_no));
+        ix_manager_->create_index(TEST_FILE_NAME, cols);
+        assert(ix_manager_->exists(TEST_FILE_NAME, cols));
         // 打开测试文件
-        ih_ = ix_manager_->open_index(TEST_FILE_NAME, index_no);
+        ih_ = ix_manager_->open_index(TEST_FILE_NAME, cols);
         assert(ih_ != nullptr);
     }
 
@@ -338,8 +347,8 @@ TEST_F(BPlusTreeTests, InsertAndDeleteTest1) {
         Rid rid = {.page_no = static_cast<int32_t>(key >> 32),
                    .slot_no = value};  // page_id = (key>>32), slot_num = (key & 0xFFFFFFFF)
         index_key = (const char *)&key;
-        bool insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
-        ASSERT_EQ(insert_ret, true);
+        auto insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
+        ASSERT_EQ(insert_ret.second, true);
     }
     Draw(buffer_pool_manager_.get(), "insert10.dot");
 
@@ -417,8 +426,8 @@ TEST_F(BPlusTreeTests, InsertAndDeleteTest2) {
         Rid rid = {.page_no = static_cast<int32_t>(key >> 32),
                    .slot_no = value};  // page_id = (key>>32), slot_num = (key & 0xFFFFFFFF)
         index_key = (const char *)&key;
-        bool insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
-        ASSERT_EQ(insert_ret, true);
+        auto insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
+        ASSERT_EQ(insert_ret.second, true);
     }
     Draw(buffer_pool_manager_.get(), "insert20.dot");
 
@@ -479,8 +488,8 @@ TEST_F(BPlusTreeTests, LargeScaleTest) {
             }
             printf("insert key=%d!\n", rand_key);
             Rid rand_val = {.page_no = rand(), .slot_no = rand()};
-            bool insert_ret = ih_->insert_entry((const char *)&rand_key, rand_val, txn_.get());  // 调用Insert
-            ASSERT_EQ(insert_ret, true);
+            auto insert_ret = ih_->insert_entry((const char *)&rand_key, rand_val, txn_.get());  // 调用Insert
+            ASSERT_EQ(insert_ret.second, true);
             mock.insert(std::make_pair(rand_key, rand_val));
             add_cnt++;
             // Draw(buffer_pool_manager_.get(),
