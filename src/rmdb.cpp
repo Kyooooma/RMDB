@@ -119,9 +119,8 @@ void *client_handler(void *sock_fd) {
         // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
         Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset);
 
-        /*事务处理部分---暂时不需要
+        //事务处理部分
         SetTransaction(&txn_id, context);
-        */
 
         // 用于判断是否已经调用了yy_delete_buffer来删除buf
         bool finish_analyze = false;
@@ -174,7 +173,7 @@ void *client_handler(void *sock_fd) {
             outfile << "failure\n";
             outfile.close();
         }
-        if (finish_analyze == false) {
+        if (!finish_analyze) {
             yy_delete_buffer(buf);
             pthread_mutex_unlock(buffer_mutex);
         }
@@ -185,12 +184,11 @@ void *client_handler(void *sock_fd) {
         }
         // 如果是单挑语句，需要按照一个完整的事务来执行，所以执行完当前语句后，自动提交事务
 
-        /*事务处理部分---暂时不需要
-        if(context->txn_->get_txn_mode() == false)
-        {
+        //事务处理部分
+        if (!context->txn_->get_txn_mode()) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
-        */
+
     }
 
     // Clear

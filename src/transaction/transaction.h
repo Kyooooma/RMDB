@@ -52,6 +52,14 @@ class Transaction {
 
     inline std::shared_ptr<std::deque<WriteRecord *>> get_write_set() { return write_set_; }  
     inline void append_write_record(WriteRecord* write_record) { write_set_->push_back(write_record); }
+    inline void delete_write_record() { write_set_->pop_back(); }
+    inline WriteRecord * get_last_write_record() { return write_set_->back(); }
+    inline void clear(){
+        write_set_->clear();
+        lock_set_->clear();
+        index_latch_page_set_->clear();
+        index_deleted_page_set_->clear();
+    }
 
     inline std::shared_ptr<std::deque<Page*>> get_index_deleted_page_set() { return index_deleted_page_set_; }
     inline void append_index_deleted_page(Page* page) { index_deleted_page_set_->push_back(page); }

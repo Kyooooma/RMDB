@@ -70,6 +70,7 @@ public:
                 offset += index.cols[j].len;
             }
             auto result = ih->insert_entry(key, rid_, context_->txn_);
+            free(key);
             if(!result.second){
                 //说明插入失败
                 fail_pos = i;
@@ -89,10 +90,15 @@ public:
                     offset += index.cols[j].len;
                 }
                 ih->delete_entry(key, context_->txn_);
+                free(key);
             }
             fh_->delete_record(rid_, context_);
             throw RMDBError("Insert Error!!");
         }
+
+        //更新事务
+        auto *wr = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_, rec);
+        context_->txn_->append_write_record(wr);
 
         return nullptr;
     }
