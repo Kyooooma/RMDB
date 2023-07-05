@@ -24,6 +24,8 @@ private:
     std::vector<ColMeta> cols_;                 // join后获得的记录的字段
 
     std::vector<Condition> fed_conds_;          // join条件
+    std::vector<std::unique_ptr<RmRecord>> left_v;
+    int head;
     bool isend;
 
 public:
@@ -61,36 +63,49 @@ public:
             isend = true;
             return;
         }
+        head = 0;
         find_rec();
     }
 
     void nextTuple() override {
         // 先向下走一步
         if(is_end()) return;
-        right_->nextTuple();
-        if(right_->is_end()){
-            left_->nextTuple();
-            right_->beginTuple();
-        }
+        head++;
         find_rec();
     }
 
     void find_rec(){
-        while(!left_->is_end()){
+        while (!left_->is_end() && left_v.size() < 100) {
+            left_v.push_back(left_->Next());
+            left_->nextTuple();
+        }
+        while(!right_->is_end()){
             auto rec = std::make_unique<RmRecord>(len_);
             //获取左节点和右节点的记录，并拼接
-            auto rec_l = left_->Next(), rec_r = right_->Next();
-            memcpy(rec->data, rec_l->data, left_->tupleLen());
-            memcpy(rec->data + left_->tupleLen(), rec_r->data, right_->tupleLen());
-            //判断是否符合条件
-            if(fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
-                //找到符合条件即return
-                return;
+            auto rec_r = right_->Next();
+            for (;head < left_v.size(); ++head) {
+                memcpy(rec->data, left_v[head]->data, left_->tupleLen());
+                memcpy(rec->data + left_->tupleLen(), rec_r->data, right_->tupleLen());
+                //判断是否符合条件
+                if(fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
+                    //找到符合条件即return
+                    return;
+                }
             }
+
             //若不符合则继续找
             right_->nextTuple();
+            head = 0;
             if(right_->is_end()){
-                left_->nextTuple();
+                left_v.clear();
+                if (left_->is_end()) {
+                    isend = true;
+                    return;
+                }
+                while (!left_->is_end() && left_v.size() < 100) {
+                    left_v.push_back(left_->Next());
+                    left_->nextTuple();
+                }
                 right_->beginTuple();
             }
         }
@@ -101,8 +116,8 @@ public:
     std::unique_ptr<RmRecord> Next() override {
         auto rec = std::make_unique<RmRecord>(len_);
         //获取左节点和右节点的记录，并拼接
-        auto rec_l = left_->Next(), rec_r = right_->Next();
-        memcpy(rec->data, rec_l->data, left_->tupleLen());
+        auto rec_r = right_->Next();
+        memcpy(rec->data, left_v[head]->data, left_->tupleLen());
         memcpy(rec->data + left_->tupleLen(), rec_r->data, right_->tupleLen());
         return rec;
     }
