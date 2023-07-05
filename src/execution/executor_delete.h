@@ -51,6 +51,7 @@ public:
                 offset += index.cols[j].len;
             }
             ih->delete_entry(key, context_->txn_);
+            free(key);
         }
     }
 

@@ -61,11 +61,13 @@ public:
                 offset += index.cols[j].len;
             }
             ih->delete_entry(key, context_->txn_);
+            free(key);
         }
         if(f){
             char *key = new char[tupleLen()];
             memcpy(key, rec->data, tupleLen());
             deletes.push_back(key);
+            free(key);
         }
     }
 
@@ -82,6 +84,7 @@ public:
                 offset += index.cols[j].len;
             }
             auto result = ih->insert_entry(key, rid_, context_->txn_);
+            free(key);
             if(!result.second){
                 fail_p = i;
                 break;
@@ -100,6 +103,7 @@ public:
                     offset += index.cols[j].len;
                 }
                 ih->delete_entry(key, context_->txn_);
+                free(key);
             }
             return false;
         }
@@ -107,6 +111,7 @@ public:
             char *key = new char[tupleLen()];
             memcpy(key, rec->data, tupleLen());
             inserts.push_back(key);
+            free(key);
         }
         return true;
     }
@@ -166,6 +171,8 @@ public:
             inserts.clear();
             throw RMDBError("update error!!");
         }
+        deletes.clear();
+        inserts.clear();
         return nullptr;
     }
 

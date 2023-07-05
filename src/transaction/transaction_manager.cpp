@@ -70,6 +70,7 @@ void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec
             offset += index.cols[j].len;
         }
         ih->delete_entry(key, nullptr);
+        free(key);
     }
 }
 
@@ -86,6 +87,7 @@ void TransactionManager::insert_index(const std::string& tab_name, RmRecord* rec
         }
         auto result = ih->insert_entry(key, rid_, nullptr);
         assert(result.second == true);
+        free(key);
     }
 }
 
