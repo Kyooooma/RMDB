@@ -43,6 +43,7 @@ public:
         cols_.insert(cols_.end(), right_cols.begin(), right_cols.end());
         isend = false;
         fed_conds_ = std::move(conds);
+        left_v.clear();
     }
 
     std::string getType() override { return "NestedLoopJoinExecutor"; };
