@@ -143,6 +143,9 @@ public:
             }
             //更新记录
             fh_->update_record(rid, rec->data, context_);
+            //更新事务
+            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *rec);
+            context_->txn_->append_write_record(wr);
         }
         if(is_fail){
             //插入失败
@@ -157,6 +160,7 @@ public:
                 RmRecord old_rec_ = RmRecord(tupleLen(), old_rec);
                 assert(insert_index(&old_rec_, rid, 0));
                 fh_->update_record(rid, old_rec, context_);
+                context_->txn_->delete_write_record();
             }
             deletes.clear();
             inserts.clear();

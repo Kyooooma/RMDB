@@ -26,8 +26,11 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     // 2. 如果为空指针，创建新事务
     // 3. 把开始事务加入到全局事务表中
     // 4. 返回当前事务指针
-    
-    return nullptr;
+    if(txn == nullptr){
+        txn = new Transaction(get_next_txn_id());
+    }
+    txn_map.emplace(txn->get_transaction_id(), txn);
+    return txn;
 }
 
 /**
@@ -42,7 +45,47 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     // 3. 释放事务相关资源，eg.锁集
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
+    //释放所有锁
+    auto lock_set = txn->get_lock_set();
+    for(auto i : *lock_set){
+        lock_manager_->unlock(txn, i);
+    }
+    //释放事务相关资源，eg.锁集  TBD
+    // 4. 把事务日志刷入磁盘中
+    log_manager->flush_log_to_disk();
+    // 5. 更新事务状态
+    txn->set_state(TransactionState::COMMITTED);
+}
 
+void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec){
+    // 删除索引
+    auto &tab = sm_manager_->db_.get_table(tab_name);
+    for (auto &index: tab.indexes) {
+        auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name, index.cols)).get();
+        char *key = new char[index.col_tot_len];
+        int offset = 0;
+        for (size_t j = 0; j < index.col_num; ++j) {
+            memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
+            offset += index.cols[j].len;
+        }
+        ih->delete_entry(key, nullptr);
+    }
+}
+
+void TransactionManager::insert_index(const std::string& tab_name, RmRecord* rec, Rid rid_){
+    // 插入索引
+    auto &tab = sm_manager_->db_.get_table(tab_name);
+    for (auto & index : tab.indexes) {
+        auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name, index.cols)).get();
+        char *key = new char[index.col_tot_len];
+        int offset = 0;
+        for (size_t j = 0; j < index.col_num; ++j) {
+            memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
+            offset += index.cols[j].len;
+        }
+        auto result = ih->insert_entry(key, rid_, nullptr);
+        assert(result.second == true);
+    }
 }
 
 /**
@@ -57,5 +100,44 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
     // 3. 清空事务相关资源，eg.锁集
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
-    
+    auto write_set = txn->get_write_set();
+    //从后往前遍历
+    while(!write_set->empty()){
+        auto last = write_set->back();
+        write_set->pop_back();
+        auto type = last->GetWriteType();
+        auto rid = last->GetRid();
+        auto tab_name = last->GetTableName();
+        auto rec = last->GetRecord();
+        assert(sm_manager_->fhs_.count(tab_name));
+        auto rfh = sm_manager_->fhs_[tab_name].get();
+        if(type == WType::INSERT_TUPLE){
+            //插入操作, 应该删除
+            std::cout << "rollback insert\n";
+            delete_index(tab_name, &rec);
+            rfh->delete_record(rid, nullptr);
+        }else if(type == WType::DELETE_TUPLE){
+            //删除操作, 应该插入
+            std::cout << "rollback delete\n";
+            insert_index(tab_name, &rec, rid);
+            rfh->insert_record(rid, rec.data);
+        }else if(type == WType::UPDATE_TUPLE){
+            //更新操作, 应该更新
+            std::cout << "rollback update\n";
+            auto old = rfh->get_record(rid, nullptr);
+            delete_index(tab_name, old.get());
+            rfh->update_record(rid, rec.data, nullptr);
+            insert_index(tab_name, &rec, rid);
+        }
+    }
+    //释放所有锁
+    auto lock_set = txn->get_lock_set();
+    for(auto i : *lock_set){
+        lock_manager_->unlock(txn, i);
+    }
+    //释放事务相关资源，eg.锁集  TBD
+    // 4. 把事务日志刷入磁盘中
+    log_manager->flush_log_to_disk();
+    // 5. 更新事务状态
+    txn->set_state(TransactionState::ABORTED);
 }

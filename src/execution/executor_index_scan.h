@@ -90,19 +90,23 @@ public:
         std::string ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index_col_names_);
         std::cout << "index_scan::" << ix_name << "\n\n";
         char *key = new char[index_meta_.col_tot_len];
-        Value min_int, min_float;
+        Value min_int, min_float, min_datetime;
         {
             min_int.set_int(INT32_MIN);
             min_int.init_raw(sizeof(int));
             min_float.set_float(-1e40);
             min_float.init_raw(sizeof(double));
+            min_datetime.set_datetime(10000101000000);
+            min_datetime.init_raw(sizeof(long long));
         }
-        Value max_int, max_float;
+        Value max_int, max_float, max_datetime;
         {
             max_int.set_int(INT32_MAX);
             max_int.init_raw(sizeof(int));
             max_float.set_float(1e40);
             max_float.init_raw(sizeof(double));
+            max_datetime.set_datetime(99991231235959);
+            max_datetime.init_raw(sizeof(long long));
         }
         int offset = 0, i, f = 1;
         for (i = 0; i < conds_.size() && f; i++) {
@@ -130,6 +134,10 @@ public:
                         min_char.set_str(val);
                         min_char.init_raw(index_meta_.cols[i].len);
                         memcpy(key + offset, min_char.raw->data, index_meta_.cols[i].len);
+                        break;
+                    }
+                    case TYPE_DATETIME:{
+                        memcpy(key + offset, min_datetime.raw->data, index_meta_.cols[i].len);
                         break;
                     }
                     default:
@@ -177,6 +185,14 @@ public:
                         min_char.set_str(val);
                         min_char.init_raw(index_meta_.cols[i].len);
                         memcpy(key + offset, min_char.raw->data, col.len);
+                    }
+                    break;
+                }
+                case TYPE_DATETIME:{
+                    if(flag){
+                        memcpy(key + offset, max_datetime.raw->data, index_meta_.cols[i].len);
+                    }else{
+                        memcpy(key + offset, min_datetime.raw->data, index_meta_.cols[i].len);
                     }
                     break;
                 }

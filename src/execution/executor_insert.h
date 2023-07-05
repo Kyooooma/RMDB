@@ -94,6 +94,10 @@ public:
             throw RMDBError("Insert Error!!");
         }
 
+        //更新事务
+        auto *wr = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_, rec);
+        context_->txn_->append_write_record(wr);
+
         return nullptr;
     }
 

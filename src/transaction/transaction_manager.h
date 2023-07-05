@@ -44,6 +44,10 @@ public:
 
     LockManager* get_lock_manager() { return lock_manager_; }
 
+    //辅助函数
+    void delete_index(const std::string& tab_name, RmRecord *rec);
+
+    void insert_index(const std::string& tab_name, RmRecord* rec, Rid rid_);
     /**
      * @description: 获取事务ID为txn_id的事务对象
      * @return {Transaction*} 事务对象的指针
@@ -60,6 +64,10 @@ public:
         assert(res->get_thread_id() == std::this_thread::get_id());
 
         return res;
+    }
+
+    txn_id_t get_next_txn_id(){
+        return next_txn_id_++;
     }
 
     static std::unordered_map<txn_id_t, Transaction *> txn_map;     // 全局事务表，存放事务ID与事务对象的映射关系

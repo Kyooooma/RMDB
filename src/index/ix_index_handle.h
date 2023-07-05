@@ -31,7 +31,7 @@ inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
             double fb = *(double *) b;
             return (fa < fb) ? -1 : ((fa > fb) ? 1 : 0);
         }
-        case TYPE_BIGINT: {
+        case TYPE_BIGINT: case TYPE_DATETIME:{
             long long fa = *(long long *) a;
             long long fb = *(long long *) b;
             return (fa < fb) ? -1 : ((fa > fb) ? 1 : 0);

@@ -59,6 +59,8 @@ public:
             auto rec = fh_->get_record(rid, context_);
             delete_index(rec.get());
             fh_->delete_record(rid, context_);
+            auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
+            context_->txn_->append_write_record(wr);
         }
         return nullptr;
     }
