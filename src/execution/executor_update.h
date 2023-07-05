@@ -123,6 +123,9 @@ public:
             //查找记录
             std::unique_ptr<RmRecord> rec = fh_->get_record(rid, context_);
             delete_index(rec.get(), 1);
+            //更新事务
+            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *rec);
+            context_->txn_->append_write_record(wr);
             for (const auto &i: set_clauses_) {
                 auto col = mp[i.lhs];
                 auto value = i.rhs;
@@ -143,9 +146,6 @@ public:
             }
             //更新记录
             fh_->update_record(rid, rec->data, context_);
-            //更新事务
-            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *rec);
-            context_->txn_->append_write_record(wr);
         }
         if(is_fail){
             //插入失败
