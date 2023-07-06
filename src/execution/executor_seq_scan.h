@@ -56,11 +56,22 @@ public:
     void beginTuple() override {
         // 构建scan_
         scan_ = std::make_unique<RmScan>(fh_);
-
         while (!scan_->is_end()) {
             rid_ = scan_->rid();
             try {
+                while (!context_->lock_mgr_->lock_IS_on_table(context_->txn_,fh_->GetFd())) {
+                    std::cout << "waiting\n";
+                    sleep(1);
+                }
+                std::cout << "表IS锁添加\n";
+                while (!context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd())) {
+                    std::cout << "waiting\n";
+                    sleep(1);
+                }
+                std::cout << "行S锁添加\n";
                 auto rec = fh_->get_record(rid_, context_);
+                context_->lock_mgr_->unlock(context_->txn_,{fh_->GetFd(),rid_,LockDataType::RECORD});
+                context_->lock_mgr_->unlock(context_->txn_, {fh_->GetFd(),LockDataType::TABLE});
                 if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
                     break;
                 }
@@ -83,7 +94,11 @@ public:
         while (!scan_->is_end()) {
             rid_ = scan_->rid();
             try {
+                while (!context_->lock_mgr_->lock_IS_on_table(context_->txn_,fh_->GetFd())) sleep(1);
+                while (!context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd())) sleep(1);
                 auto rec = fh_->get_record(rid_, context_);
+                context_->lock_mgr_->unlock(context_->txn_,{fh_->GetFd(),rid_,LockDataType::RECORD});
+                context_->lock_mgr_->unlock(context_->txn_, {fh_->GetFd(),LockDataType::TABLE});
                 if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
                     break;
                 }
@@ -100,7 +115,12 @@ public:
      * @return std::unique_ptr<RmRecord>
      */
     std::unique_ptr<RmRecord> Next() override {
-        return fh_->get_record(rid_, context_);
+        while (!context_->lock_mgr_->lock_IS_on_table(context_->txn_,fh_->GetFd())) sleep(1);
+        while (!context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd())) sleep(1);
+        auto rec = fh_->get_record(rid_, context_);
+        context_->lock_mgr_->unlock(context_->txn_,{fh_->GetFd(),rid_,LockDataType::RECORD});
+        context_->lock_mgr_->unlock(context_->txn_, {fh_->GetFd(),LockDataType::TABLE});
+        return rec;
     }
 
     const std::vector<ColMeta> &cols() const override {

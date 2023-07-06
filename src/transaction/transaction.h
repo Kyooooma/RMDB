@@ -68,6 +68,8 @@ class Transaction {
     inline void append_index_latch_page_set(Page* page) { index_latch_page_set_->push_back(page); }
 
     inline std::shared_ptr<std::unordered_set<LockDataId>> get_lock_set() { return lock_set_; }
+    inline void set_lock_set(LockDataId lockDataId) { lock_set_->insert(lockDataId); }
+    inline bool erase_lock_set(LockDataId lockDataId) { return lock_set_->erase(lockDataId); }
 
    private:
     bool txn_mode_;                   // 用于标识当前事务为显式事务还是单条SQL语句的隐式事务

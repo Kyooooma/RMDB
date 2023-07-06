@@ -58,6 +58,10 @@ public:
             memcpy(rec.data + col.offset, val.raw->data, col.len);
         }
         // 插入记录, 获取rid
+        while (!context_->lock_mgr_->lock_IX_on_table(context_->txn_,fh_->GetFd())) {
+            std::cout << "waiting\n";
+            sleep(1);
+        }
         rid_ = fh_->insert_record(rec.data, context_);
         // 更新索引
         for (int i = 0; i < tab_.indexes.size(); i++) {

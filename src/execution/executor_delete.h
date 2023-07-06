@@ -57,6 +57,8 @@ public:
 
     std::unique_ptr<RmRecord> Next() override {
         for(auto rid : rids_){
+            while (!context_->lock_mgr_->lock_IX_on_table(context_->txn_,fh_->GetFd())) sleep(1);
+            while (!context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd())) sleep(1);
             auto rec = fh_->get_record(rid, context_);
             delete_index(rec.get());
             fh_->delete_record(rid, context_);
