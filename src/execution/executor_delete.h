@@ -64,6 +64,8 @@ public:
             fh_->delete_record(rid, context_);
             auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
             context_->txn_->append_write_record(wr);
+            context_->lock_mgr_->unlock(context_->txn_,{fh_->GetFd(),rid,LockDataType::RECORD});
+            std::cout << "行X锁删除\n";
         }
         return nullptr;
     }

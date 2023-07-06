@@ -154,6 +154,8 @@ public:
             }
             //更新记录
             fh_->update_record(rid, rec->data, context_);
+            context_->lock_mgr_->unlock(context_->txn_,{fh_->GetFd(),rid,LockDataType::RECORD});
+            std::cout << "行X锁删除\n";
         }
 
         if(is_fail){
