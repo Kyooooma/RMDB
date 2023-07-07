@@ -36,7 +36,7 @@ public:
 
     void commit(Transaction* txn, LogManager* log_manager);
 
-    void abort(Transaction* txn, LogManager* log_manager);
+    void abort(Context* context, LogManager* log_manager);
 
     ConcurrencyMode get_concurrency_mode() { return concurrency_mode_; }
 
