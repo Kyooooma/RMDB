@@ -114,10 +114,6 @@ public:
         int upd_cnt = 0;
         for (auto rid: rids_) {
             //查找记录
-            while (!context_->lock_mgr_->lock_IX_on_table(context_->txn_,fh_->GetFd())) sleep(1);
-            std::cout << "表IX锁添加\n";
-            while (!context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd())) sleep(1);
-            std::cout << "行X锁添加\n";
             auto rec = fh_->get_record(rid, context_);
 //            std::unique_ptr<RmRecord> rec = fh_->get_record(rid, context_);
             delete_index(rec.get());
@@ -154,8 +150,6 @@ public:
             }
             //更新记录
             fh_->update_record(rid, rec->data, context_);
-            context_->lock_mgr_->unlock(context_->txn_,{fh_->GetFd(),rid,LockDataType::RECORD});
-            std::cout << "行X锁删除\n";
         }
 
         if(is_fail){
