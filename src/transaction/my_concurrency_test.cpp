@@ -70,6 +70,7 @@ class ConcurrencyTest : public ::testing::Test {
 
     void TearDown() override {
         sm_manager->close_db();
+        txn_manager->txn_map.clear();
     }
 
     // 判断当前正在执行的是显式事务还是单条SQL语句的事务，并更新事务ID

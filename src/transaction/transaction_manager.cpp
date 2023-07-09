@@ -29,6 +29,7 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     if(txn == nullptr){
         txn = new Transaction(get_next_txn_id());
     }
+    std::unique_lock<std::mutex> lock(latch_);
     txn_map.emplace(txn->get_transaction_id(), txn);
     return txn;
 }
