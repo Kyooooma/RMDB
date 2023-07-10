@@ -480,7 +480,7 @@ bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::INTENTION_EXCLUSIVE};
         for (auto &request: lock_request_queue.request_queue_) {
             if (request.txn_id_ == txn->get_transaction_id()) {
-                if (request.lock_mode_ == LockMode::INTENTION_SHARED) {
+                if (request.lock_mode_ != LockMode::EXLUCSIVE) {
                     request.lock_mode_ = LockMode::INTENTION_EXCLUSIVE;
                 }
                 request.granted_ = true;
