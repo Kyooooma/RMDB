@@ -29,6 +29,7 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     if(txn == nullptr){
         txn = new Transaction(get_next_txn_id());
     }
+    std::unique_lock<std::mutex> lock(latch_);
     txn_map.emplace(txn->get_transaction_id(), txn);
     return txn;
 }
@@ -96,13 +97,14 @@ void TransactionManager::insert_index(const std::string& tab_name, RmRecord* rec
  * @param {Transaction *} txn 需要回滚的事务
  * @param {LogManager} *log_manager 日志管理器指针
  */
-void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
+void TransactionManager::abort(Context * context, LogManager *log_manager) {
     // Todo:
     // 1. 回滚所有写操作
     // 2. 释放所有锁
     // 3. 清空事务相关资源，eg.锁集
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
+    auto txn = context->txn_;
     auto write_set = txn->get_write_set();
     //从后往前遍历
     while(!write_set->empty()){
@@ -118,7 +120,7 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
             //插入操作, 应该删除
             std::cout << "rollback insert\n";
             delete_index(tab_name, &rec);
-            rfh->delete_record(rid, nullptr);
+            rfh->delete_record(rid, context);
         }else if(type == WType::DELETE_TUPLE){
             //删除操作, 应该插入
             std::cout << "rollback delete\n";
@@ -127,9 +129,9 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
         }else if(type == WType::UPDATE_TUPLE){
             //更新操作, 应该更新
             std::cout << "rollback update\n";
-            auto old = rfh->get_record(rid, nullptr);
+            auto old = rfh->get_record(rid, context);
             delete_index(tab_name, old.get());
-            rfh->update_record(rid, rec.data, nullptr);
+            rfh->update_record(rid, rec.data, context);
             insert_index(tab_name, &rec, rid);
         }
     }

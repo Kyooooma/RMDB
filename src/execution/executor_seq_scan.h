@@ -41,6 +41,7 @@ public:
         len_ = cols_.back().offset + cols_.back().len;
 
         context_ = context;
+        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
 
         fed_conds_ = conds_;
     }
@@ -56,16 +57,11 @@ public:
     void beginTuple() override {
         // 构建scan_
         scan_ = std::make_unique<RmScan>(fh_);
-
         while (!scan_->is_end()) {
             rid_ = scan_->rid();
-            try {
-                auto rec = fh_->get_record(rid_, context_);
-                if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
-                    break;
-                }
-            } catch (RecordNotFoundError &e) {
-                std::cerr << e.what() << std::endl;
+            auto rec = fh_->get_record(rid_, context_);
+            if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
+                break;
             }
             scan_->next();
         }
@@ -82,13 +78,9 @@ public:
         }
         while (!scan_->is_end()) {
             rid_ = scan_->rid();
-            try {
-                auto rec = fh_->get_record(rid_, context_);
-                if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
-                    break;
-                }
-            } catch (RecordNotFoundError &e) {
-                std::cerr << e.what() << std::endl;
+            auto rec = fh_->get_record(rid_, context_);
+            if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
+                break;
             }
             scan_->next();
         }
@@ -100,14 +92,17 @@ public:
      * @return std::unique_ptr<RmRecord>
      */
     std::unique_ptr<RmRecord> Next() override {
-        return fh_->get_record(rid_, context_);
+        auto rec = fh_->get_record(rid_, context_);
+        return rec;
     }
 
     const std::vector<ColMeta> &cols() const override {
         return cols_;
     }
 
-    bool is_end() const override { return scan_->is_end(); }
+    bool is_end() const override {
+        return scan_->is_end();
+    }
 
     Rid &rid() override { return rid_; }
 };

@@ -80,6 +80,7 @@ public:
             }
         }
         fed_conds_ = conds_;
+        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
     }
 
     std::string getType() override { return "IndexScanExecutor"; };
@@ -210,13 +211,10 @@ public:
         scan_ = std::make_unique<IxScan>(ih, start, end, sm_manager_->get_bpm());
         while(!is_end()){
             rid_ = scan_->rid();
-            try {
-                auto rec = fh_->get_record(rid_, context_);
-                if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
-                    break;
-                }
-            } catch (RecordNotFoundError &e) {
-                std::cerr << e.what() << std::endl;
+            auto rec = fh_->get_record(rid_, context_);
+//                auto rec = fh_->get_record(rid_, context_);
+            if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
+                break;
             }
             scan_->next();
         }
@@ -230,6 +228,7 @@ public:
             rid_ = scan_->rid();
             try {
                 auto rec = fh_->get_record(rid_, context_);
+//                auto rec = fh_->get_record(rid_, context_);
                 if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
                     break;
                 }
@@ -241,7 +240,8 @@ public:
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        return fh_->get_record(rid_, context_);
+        auto rec = fh_->get_record(rid_, context_);
+        return rec;
     }
 
     const std::vector<ColMeta> &cols() const override {

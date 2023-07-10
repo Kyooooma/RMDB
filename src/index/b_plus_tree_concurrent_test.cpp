@@ -73,15 +73,24 @@ class BPlusTreeConcurrentTest : public ::testing::Test {
         if (chdir(TEST_DB_NAME.c_str()) < 0) {
             throw UnixError();
         }
-        // 如果测试文件存在，则先删除原文件（最后留下来的文件存的是最后一个测试点的数据）
-        if (ix_manager_->exists(TEST_FILE_NAME, index_no)) {
-            ix_manager_->destroy_index(TEST_FILE_NAME, index_no);
+        std::vector<ColMeta> cols;
+        ColMeta col = {
+                .tab_name = TEST_FILE_NAME,
+                .name = std::to_string(index_no),
+                .type = TYPE_INT,
+                .len = sizeof(int),
+                .offset = 0,
+                .index = false,
+        };
+        cols.push_back(col);
+        if (ix_manager_->exists(TEST_FILE_NAME, cols)) {
+            ix_manager_->destroy_index(TEST_FILE_NAME, cols);
         }
         // 创建测试文件
-        ix_manager_->create_index(TEST_FILE_NAME, index_no, TYPE_INT, sizeof(int));
-        assert(ix_manager_->exists(TEST_FILE_NAME, index_no));
+        ix_manager_->create_index(TEST_FILE_NAME, cols);
+        assert(ix_manager_->exists(TEST_FILE_NAME, cols));
         // 打开测试文件
-        ih_ = ix_manager_->open_index(TEST_FILE_NAME, index_no);
+        ih_ = ix_manager_->open_index(TEST_FILE_NAME, cols);
         assert(ih_ != nullptr);
     }
 
@@ -100,55 +109,55 @@ class BPlusTreeConcurrentTest : public ::testing::Test {
     void ToGraph(const IxIndexHandle *ih, IxNodeHandle *node, BufferPoolManager *bpm, std::ofstream &out) const {
         std::string leaf_prefix("LEAF_");
         std::string internal_prefix("INT_");
-        if (node->IsLeafPage()) {
+        if (node->is_leaf_page()) {
             IxNodeHandle *leaf = node;
             // Print node name
-            out << leaf_prefix << leaf->GetPageNo();
+            out << leaf_prefix << leaf->get_page_no();
             // Print node properties
             out << "[shape=plain color=green ";
             // Print data of the node
             out << "label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n";
             // Print data
-            out << "<TR><TD COLSPAN=\"" << leaf->GetSize() << "\">page_no=" << leaf->GetPageNo() << "</TD></TR>\n";
-            out << "<TR><TD COLSPAN=\"" << leaf->GetSize() << "\">"
-                << "max_size=" << leaf->GetMaxSize() << ",min_size=" << leaf->GetMinSize() << "</TD></TR>\n";
+            out << "<TR><TD COLSPAN=\"" << leaf->get_size() << "\">page_no=" << leaf->get_page_no() << "</TD></TR>\n";
+            out << "<TR><TD COLSPAN=\"" << leaf->get_size() << "\">"
+                << "max_size=" << leaf->get_max_size() << ",min_size=" << leaf->get_min_size() << "</TD></TR>\n";
             out << "<TR>";
-            for (int i = 0; i < leaf->GetSize(); i++) {
-                out << "<TD>" << leaf->KeyAt(i) << "</TD>\n";
+            for (int i = 0; i < leaf->get_size(); i++) {
+                out << "<TD>" << leaf->key_at(i) << "</TD>\n";
             }
             out << "</TR>";
             // Print table end
             out << "</TABLE>>];\n";
             // Print Leaf node link if there is a next page
-            if (leaf->GetNextLeaf() != INVALID_PAGE_ID && leaf->GetNextLeaf() > 1) {
+            if (leaf->get_next_leaf() != INVALID_PAGE_ID && leaf->get_next_leaf() > 1) {
                 // 注意加上一个大于1的判断条件，否则若GetNextPageNo()是1，会把1那个结点也画出来
-                out << leaf_prefix << leaf->GetPageNo() << " -> " << leaf_prefix << leaf->GetNextLeaf() << ";\n";
-                out << "{rank=same " << leaf_prefix << leaf->GetPageNo() << " " << leaf_prefix << leaf->GetNextLeaf()
+                out << leaf_prefix << leaf->get_page_no() << " -> " << leaf_prefix << leaf->get_next_leaf() << ";\n";
+                out << "{rank=same " << leaf_prefix << leaf->get_page_no() << " " << leaf_prefix << leaf->get_next_leaf()
                     << "};\n";
             }
 
             // Print parent links if there is a parent
-            if (leaf->GetParentPageNo() != INVALID_PAGE_ID) {
-                out << internal_prefix << leaf->GetParentPageNo() << ":p" << leaf->GetPageNo() << " -> " << leaf_prefix
-                    << leaf->GetPageNo() << ";\n";
+            if (leaf->get_parent_page_no() != INVALID_PAGE_ID) {
+                out << internal_prefix << leaf->get_parent_page_no() << ":p" << leaf->get_page_no() << " -> " << leaf_prefix
+                    << leaf->get_page_no() << ";\n";
             }
         } else {
             IxNodeHandle *inner = node;
             // Print node name
-            out << internal_prefix << inner->GetPageNo();
+            out << internal_prefix << inner->get_page_no();
             // Print node properties
             out << "[shape=plain color=pink ";  // why not?
             // Print data of the node
             out << "label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n";
             // Print data
-            out << "<TR><TD COLSPAN=\"" << inner->GetSize() << "\">page_no=" << inner->GetPageNo() << "</TD></TR>\n";
-            out << "<TR><TD COLSPAN=\"" << inner->GetSize() << "\">"
-                << "max_size=" << inner->GetMaxSize() << ",min_size=" << inner->GetMinSize() << "</TD></TR>\n";
+            out << "<TR><TD COLSPAN=\"" << inner->get_size() << "\">page_no=" << inner->get_page_no() << "</TD></TR>\n";
+            out << "<TR><TD COLSPAN=\"" << inner->get_size() << "\">"
+                << "max_size=" << inner->get_max_size() << ",min_size=" << inner->get_min_size() << "</TD></TR>\n";
             out << "<TR>";
-            for (int i = 0; i < inner->GetSize(); i++) {
-                out << "<TD PORT=\"p" << inner->ValueAt(i) << "\">";
-                if (inner->KeyAt(i) != 0) {  // 原判断条件是if (i > 0)
-                    out << inner->KeyAt(i);
+            for (int i = 0; i < inner->get_size(); i++) {
+                out << "<TD PORT=\"p" << inner->value_at(i) << "\">";
+                if (inner->key_at(i) != 0) {  // 原判断条件是if (i > 0)
+                    out << inner->key_at(i);
                 } else {
                     out << " ";
                 }
@@ -158,25 +167,25 @@ class BPlusTreeConcurrentTest : public ::testing::Test {
             // Print table end
             out << "</TABLE>>];\n";
             // Print Parent link
-            if (inner->GetParentPageNo() != INVALID_PAGE_ID) {
-                out << internal_prefix << inner->GetParentPageNo() << ":p" << inner->GetPageNo() << " -> "
-                    << internal_prefix << inner->GetPageNo() << ";\n";
+            if (inner->get_parent_page_no() != INVALID_PAGE_ID) {
+                out << internal_prefix << inner->get_parent_page_no() << ":p" << inner->get_page_no() << " -> "
+                    << internal_prefix << inner->get_page_no() << ";\n";
             }
             // Print leaves
-            for (int i = 0; i < inner->GetSize(); i++) {
-                IxNodeHandle *child_node = ih->FetchNode(inner->ValueAt(i));
+            for (int i = 0; i < inner->get_size(); i++) {
+                IxNodeHandle *child_node = ih->fetch_node(inner->value_at(i));
                 ToGraph(ih, child_node, bpm, out);  // 继续递归
                 if (i > 0) {
-                    IxNodeHandle *sibling_node = ih->FetchNode(inner->ValueAt(i - 1));
-                    if (!sibling_node->IsLeafPage() && !child_node->IsLeafPage()) {
-                        out << "{rank=same " << internal_prefix << sibling_node->GetPageNo() << " " << internal_prefix
-                            << child_node->GetPageNo() << "};\n";
+                    IxNodeHandle *sibling_node = ih->fetch_node(inner->value_at(i - 1));
+                    if (!sibling_node->is_leaf_page() && !child_node->is_leaf_page()) {
+                        out << "{rank=same " << internal_prefix << sibling_node->get_page_no() << " " << internal_prefix
+                            << child_node->get_page_no() << "};\n";
                     }
-                    bpm->UnpinPage(sibling_node->GetPageId(), false);
+                    bpm->unpin_page(sibling_node->get_page_id(), false);
                 }
             }
         }
-        bpm->UnpinPage(node->GetPageId(), false);
+        bpm->unpin_page(node->get_page_id(), false);
     }
 
     /**
@@ -188,7 +197,7 @@ class BPlusTreeConcurrentTest : public ::testing::Test {
     void Draw(BufferPoolManager *bpm, const std::string &outf) {
         std::ofstream out(outf);
         out << "digraph G {" << std::endl;
-        IxNodeHandle *node = ih_->FetchNode(ih_->file_hdr_.root_page);
+        IxNodeHandle *node = ih_->fetch_node(ih_->file_hdr_->root_page_);
         ToGraph(ih_.get(), node, bpm, out);
         out << "}" << std::endl;
         out.close();
@@ -249,7 +258,7 @@ void InsertHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        tree->GetValue(index_key, &rids, transaction);  // 调用GetValue
+        tree->get_value(index_key, &rids, transaction);  // 调用GetValue
         EXPECT_EQ(rids.size(), 1);
 
         int64_t value = key & 0xFFFFFFFF;
@@ -284,8 +293,8 @@ TEST_F(BPlusTreeConcurrentTest, InsertScaleTest) {
     const int thread_num = 50;
     const int order = 255;
 
-    assert(order > 2 && order <= ih_->file_hdr_.btree_order);
-    ih_->file_hdr_.btree_order = order;
+    assert(order > 2 && order <= ih_->file_hdr_->btree_order_);
+    ih_->file_hdr_->btree_order_ = order;
 
     // keys to Insert
     std::vector<int64_t> keys;
@@ -326,8 +335,8 @@ TEST_F(BPlusTreeConcurrentTest, MixScaleTest) {
     const int thread_num = 50;
     const int order = 255;
 
-    assert(order > 2 && order <= ih_->file_hdr_.btree_order);
-    ih_->file_hdr_.btree_order = order;
+    assert(order > 2 && order <= ih_->file_hdr_->btree_order_);
+    ih_->file_hdr_->btree_order_ = order;
 
     // keys to Insert
     std::vector<int64_t> keys;
