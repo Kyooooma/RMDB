@@ -149,8 +149,7 @@ void *client_handler(void *sock_fd) {
             memcpy(data_send, str.c_str(), str.length());
             data_send[str.length()] = '\0';
             offset = str.length();
-            context->txn_ = txn_manager->get_transaction(e.get_transaction_id());
-
+            assert(e.get_transaction_id() == context->txn_->get_transaction_id());
             // 回滚事务
             txn_manager->abort(context, log_manager.get());
             std::cout << e.GetInfo() << std::endl;

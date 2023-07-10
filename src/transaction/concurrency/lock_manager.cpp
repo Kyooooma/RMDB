@@ -594,7 +594,7 @@ bool LockManager::check_loop(Transaction * txn){
         }
     }
     if(mx != -1){
-        if(txn->get_thread_id() == std::this_thread::get_id()){
+        if(txn->get_transaction_id() == mx){
             throw TransactionAbortException(mx, AbortReason::DEADLOCK_PREVENTION);
         }
         return false;
