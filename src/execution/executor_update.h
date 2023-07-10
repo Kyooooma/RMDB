@@ -115,6 +115,7 @@ public:
         for (auto rid: rids_) {
             //查找记录
             auto rec = fh_->get_record(rid, context_);
+            auto old_rec = fh_->get_record(rid, context_);
             delete_index(rec.get());
             upd_cnt++;
             for (const auto &i: set_clauses_) {
@@ -133,15 +134,14 @@ public:
             }
             if(!insert_index(rec.get(), rid)){
                 is_fail = true;
-                auto rec_ = fh_->get_record(rid, context_);
-                insert_index(rec_.get(), rid);
+                insert_index(old_rec.get(), rid);
                 upd_cnt--;
                 break;
             }
             //更新记录
             fh_->update_record(rid, rec->data, context_);
             //更新事务
-            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *rec);
+            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
             context_->txn_->append_write_record(wr);
         }
 
