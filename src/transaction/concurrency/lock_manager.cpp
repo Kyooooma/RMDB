@@ -9,7 +9,6 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #include "lock_manager.h"
-#include <queue>
 
 /**
  * @description: 申请行级共享锁
@@ -48,9 +47,9 @@ bool LockManager::lock_shared_on_record(Transaction *txn, const Rid &rid, int ta
         lock.lock();
         //判环
         int flag = 0;
-        if (!check_loop(txn)) {
-            flag = 1;
-        }
+//        if (!check_loop(txn)) {
+//            flag = 1;
+//        }
         LockDataId lock_data_id_table = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id_table];
 
@@ -75,9 +74,9 @@ bool LockManager::lock_shared_on_record(Transaction *txn, const Rid &rid, int ta
             }
         }
         if (flag) {
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            continue;
+//            lock.unlock();
+//            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
         // 行上加S锁
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::SHARED};
@@ -134,9 +133,9 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
         lock.lock();
         //判环
         int flag = 0;
-        if (!check_loop(txn)) {
-            flag = 1;
-        }
+//        if (!check_loop(txn)) {
+//            flag = 1;
+//        }
         LockDataId lock_data_id_table = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id_table];
 
@@ -176,9 +175,9 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
         }
 
         if (flag) {
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            continue;
+//            lock.unlock();
+//            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
         // 行上加X锁
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::EXLUCSIVE};
@@ -231,9 +230,9 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
         lock.lock();
         //判环
         int flag = 0;
-        if (!check_loop(txn)) {
-            flag = 1;
-        }
+//        if (!check_loop(txn)) {
+//            flag = 1;
+//        }
         LockDataId lock_data_id_table = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id_table];
 
@@ -252,9 +251,9 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
         }
 
         if (flag) {
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            continue;
+//            lock.unlock();
+//            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
 
         // 表上加S锁
@@ -309,11 +308,11 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
     lock.unlock();
     while (true) {
         lock.lock();
-        //判环
+        //判够吧环
         int flag = 0;
-        if (!check_loop(txn)) {
-            flag = 1;
-        }
+//        if (!check_loop(txn)) {
+//            flag = 1;
+//        }
         LockDataId lock_data_id = {tab_fd, LockDataType::TABLE};
         auto &request_queue = lock_table_[lock_data_id];
         for (auto &request: request_queue.request_queue_) {
@@ -327,9 +326,9 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
             }
         }
         if (flag) {
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            continue;
+//            lock.unlock();
+//            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
         // 表上加X锁
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::EXLUCSIVE};
@@ -381,11 +380,11 @@ bool LockManager::lock_IS_on_table(Transaction *txn, int tab_fd) {
     lock.unlock();
     while (true) {
         lock.lock();
-        //判环
+        //判够吧环
         int flag = 0;
-        if (!check_loop(txn)) {
-            flag = 1;
-        }
+//        if (!check_loop(txn)) {
+//            flag = 1;
+//        }
         LockDataId lock_data_id = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id];
 
@@ -398,9 +397,7 @@ bool LockManager::lock_IS_on_table(Transaction *txn, int tab_fd) {
             }
         }
         if (flag) {
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            continue;
+            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
 
         if (lock_request_queue.group_lock_mode_ == GroupLockMode::NON_LOCK) {
@@ -453,11 +450,11 @@ bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
     lock.unlock();
     while (true) {
         lock.lock();
-        //判环
+        //判够吧环
         int flag = 0;
-        if (!check_loop(txn)) {
-            flag = 1;
-        }
+//        if (!check_loop(txn)) {
+//            flag = 1;
+//        }
         LockDataId lock_data_id = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id];
 
@@ -475,9 +472,7 @@ bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
             }
         }
         if (flag) {
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            continue;
+            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
 
         lock_request_queue.group_lock_mode_ = GroupLockMode::IX;
