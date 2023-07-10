@@ -172,6 +172,8 @@ void *client_handler(void *sock_fd) {
             outfile.open("output.txt", std::ios::out | std::ios::app);
             outfile << "failure\n";
             outfile.close();
+        } catch (...){
+            std::cout << "111\n";
         }
         if (!finish_analyze) {
             yy_delete_buffer(buf);
