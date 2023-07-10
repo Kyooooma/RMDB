@@ -114,16 +114,9 @@ public:
         int upd_cnt = 0;
         for (auto rid: rids_) {
             //查找记录
-            while (!context_->lock_mgr_->lock_IX_on_table(context_->txn_,fh_->GetFd())) sleep(1);
-            std::cout << "表IX锁添加\n";
-            while (!context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd())) sleep(1);
-            std::cout << "行X锁添加\n";
             auto rec = fh_->get_record(rid, context_);
-//            std::unique_ptr<RmRecord> rec = fh_->get_record(rid, context_);
+            auto old_rec = fh_->get_record(rid, context_);
             delete_index(rec.get());
-            //更新事务
-            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *rec);
-            context_->txn_->append_write_record(wr);
             upd_cnt++;
             for (const auto &i: set_clauses_) {
                 auto col = mp[i.lhs];
@@ -141,21 +134,15 @@ public:
             }
             if(!insert_index(rec.get(), rid)){
                 is_fail = true;
-                auto last = context_->txn_->get_last_write_record();
-                auto type = last->GetWriteType();
-                assert(type == WType::UPDATE_TUPLE);
-                auto rid_ = last->GetRid();
-                auto tab_name = last->GetTableName();
-                auto rec_ = last->GetRecord();
-                insert_index(&rec_, rid_);
+                insert_index(old_rec.get(), rid);
                 upd_cnt--;
-                context_->txn_->delete_write_record();
                 break;
             }
             //更新记录
             fh_->update_record(rid, rec->data, context_);
-            context_->lock_mgr_->unlock(context_->txn_,{fh_->GetFd(),rid,LockDataType::RECORD});
-            std::cout << "行X锁删除\n";
+            //更新事务
+            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
+            context_->txn_->append_write_record(wr);
         }
 
         if(is_fail){

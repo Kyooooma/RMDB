@@ -149,9 +149,9 @@ void *client_handler(void *sock_fd) {
             memcpy(data_send, str.c_str(), str.length());
             data_send[str.length()] = '\0';
             offset = str.length();
-
+            assert(e.get_transaction_id() == context->txn_->get_transaction_id());
             // 回滚事务
-            txn_manager->abort(context->txn_, log_manager.get());
+            txn_manager->abort(context, log_manager.get());
             std::cout << e.GetInfo() << std::endl;
 
             std::fstream outfile;
@@ -172,6 +172,8 @@ void *client_handler(void *sock_fd) {
             outfile.open("output.txt", std::ios::out | std::ios::app);
             outfile << "failure\n";
             outfile.close();
+        } catch (...){
+            std::cout << "111\n";
         }
         if (!finish_analyze) {
             yy_delete_buffer(buf);

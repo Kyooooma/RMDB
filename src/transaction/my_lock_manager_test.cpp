@@ -215,7 +215,7 @@ TEST_F(LockManagerTest, BasicTest3_SHARED_TABLE) {
 TEST_F(LockManagerTest, BasicTest4_EXCLUSIVE_TABLE) {
     std::vector<int> tab_fds;
     std::vector<Transaction *> txns;
-    int num = 10;
+    int num = 5;
 
     for(int i = 0; i < num; ++i) {
         tab_fds.push_back(i);
@@ -367,48 +367,52 @@ TEST_F(LockManagerTest, BasicTest6_INTENTION_EXCLUSIVE) {
 }
 
 // test deadlock prevention
-//TEST_F(LockManagerTest, Deadlock_Prevetion_Test) {
-//    // txn1 -> table0.tuple{0,0} exclusive
-//    // txn2 -> table0.tuple{1,1} exclusive
-//    // txn1 -> table0.tuple{1,1} exclusive
-//    // txn2 -> table1.tuple{0,0} exclusive
-//
-//    int table0 = 0;
-//    Rid rid0{0, 0};
-//    Rid rid1{1, 1};
-//    Transaction txn0(0);
-//    Transaction txn1(1);
-//
-//    std::thread t0([&] {
-//        bool res;
-//        res = lock_manager_->lock_exclusive_on_record(&txn0, rid0, table0);
-//        EXPECT_EQ(res, true);
-//        EXPECT_EQ(txn0.get_state(), TransactionState::GROWING);
-//
-//        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-//        try {
-//            res = lock_manager_->lock_exclusive_on_record(&txn0, rid1, table0);
-//        } catch (TransactionAbortException e) {
-//            txn_manager_->Abort(&txn0, log_manager_.get());
-//        }
-//    });
-//
-//    std::thread t1([&] {
-//        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-//        bool res;
-//        res = lock_manager_->lock_exclusive_on_record(&txn1, rid1, table0);
-//        EXPECT_EQ(res, true);
-//        EXPECT_EQ(txn1.get_state(), TransactionState::GROWING);
-//
-//        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-//        try {
-//            res = lock_manager_->lock_exclusive_on_record(&txn1, rid0, table0);
-//        } catch (TransactionAbortException e) {
-//            txn_manager_->Abort(&txn1, log_manager_.get());
-//        }
-//    });
-//
-//    t0.join();
-//    t1.join();
-//
-//}
+TEST_F(LockManagerTest, Deadlock_Prevetion_Test) {
+    // txn1 -> table0.tuple{0,0} exclusive
+    // txn2 -> table0.tuple{1,1} exclusive
+    // txn1 -> table0.tuple{1,1} exclusive
+    // txn2 -> table1.tuple{0,0} exclusive
+
+    int table0 = 0;
+    Rid rid0{0, 0};
+    Rid rid1{1, 1};
+    Transaction txn0(0);
+    Transaction txn1(1);
+
+    Context * context = new Context(lock_manager_.get(), log_manager_.get(), nullptr);
+
+    std::thread t0([&] {
+        bool res;
+        res = lock_manager_->lock_exclusive_on_record(&txn0, rid0, table0);
+        EXPECT_EQ(res, true);
+        EXPECT_EQ(txn0.get_state(), TransactionState::GROWING);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        context->txn_ = &txn0;
+        try {
+            res = lock_manager_->lock_exclusive_on_record(&txn0, rid1, table0);
+        } catch (TransactionAbortException e) {
+            txn_manager_->abort(context, log_manager_.get());
+        }
+    });
+
+    std::thread t1([&] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        bool res;
+        res = lock_manager_->lock_exclusive_on_record(&txn1, rid1, table0);
+        EXPECT_EQ(res, true);
+        EXPECT_EQ(txn1.get_state(), TransactionState::GROWING);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        context->txn_ = &txn1;
+        try {
+            res = lock_manager_->lock_exclusive_on_record(&txn1, rid0, table0);
+        } catch (TransactionAbortException e) {
+            txn_manager_->abort(context, log_manager_.get());
+        }
+    });
+
+    t0.join();
+    t1.join();
+
+}

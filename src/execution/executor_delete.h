@@ -36,6 +36,7 @@ public:
         conds_ = std::move(conds);
         rids_ = std::move(rids);
         context_ = context;
+        context_->lock_mgr_->lock_IX_on_table(context->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
     }
 
     std::string getType() override { return "DeleteExecutor"; };
@@ -57,15 +58,11 @@ public:
 
     std::unique_ptr<RmRecord> Next() override {
         for(auto rid : rids_){
-            while (!context_->lock_mgr_->lock_IX_on_table(context_->txn_,fh_->GetFd())) sleep(1);
-            while (!context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd())) sleep(1);
             auto rec = fh_->get_record(rid, context_);
             delete_index(rec.get());
             fh_->delete_record(rid, context_);
             auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
             context_->txn_->append_write_record(wr);
-            context_->lock_mgr_->unlock(context_->txn_,{fh_->GetFd(),rid,LockDataType::RECORD});
-            std::cout << "行X锁删除\n";
         }
         return nullptr;
     }

@@ -62,6 +62,7 @@ public:
     // This function is called after every test.
     void TearDown() override {
         sm_manager->close_db();  // exit
+        txn_manager->txn_map.clear();
         // sm_manager_->drop_db(db_name_);  // 若不删除数据库文件，则将保留最后一个测试点的数据库
     };
 

@@ -36,6 +36,7 @@ public:
         }
         fh_ = sm_manager_->fhs_.at(tab_name).get();
         context_ = context;
+        context_->lock_mgr_->lock_exclusive_on_table(context->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
     };
 
     std::string getType() override { return "InsertExecutor"; };
@@ -57,11 +58,10 @@ public:
             val.init_raw(col.len);
             memcpy(rec.data + col.offset, val.raw->data, col.len);
         }
+
+        //上一个表级的X锁
         // 插入记录, 获取rid
-        while (!context_->lock_mgr_->lock_IX_on_table(context_->txn_,fh_->GetFd())) {
-            std::cout << "waiting\n";
-            sleep(1);
-        }
+
         rid_ = fh_->insert_record(rec.data, context_);
         // 更新索引
         for (int i = 0; i < tab_.indexes.size(); i++) {
