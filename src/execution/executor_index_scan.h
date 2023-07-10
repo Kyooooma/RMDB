@@ -80,6 +80,7 @@ public:
             }
         }
         fed_conds_ = conds_;
+        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
     }
 
     std::string getType() override { return "IndexScanExecutor"; };
