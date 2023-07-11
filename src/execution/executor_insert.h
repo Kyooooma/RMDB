@@ -103,7 +103,11 @@ public:
         //更新事务
         auto *wr = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_, rec);
         context_->txn_->append_write_record(wr);
-
+        //更新日志
+        auto *logRecord = new InsertLogRecord(context_->txn_->get_transaction_id(), rec, rid_,tab_name_);
+        logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
+        context_->log_mgr_->add_log_to_buffer(logRecord);
+        context_->txn_->set_prev_lsn(logRecord->lsn_);
         return nullptr;
     }
 

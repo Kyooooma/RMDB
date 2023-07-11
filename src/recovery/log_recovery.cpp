@@ -14,6 +14,61 @@ See the Mulan PSL v2 for more details. */
  * @description: analyze阶段，需要获得脏页表（DPT）和未完成的事务列表（ATT）
  */
 void RecoveryManager::analyze() {
+    int off = 0;
+    while (true) {
+        int len = disk_manager_->read_log(buffer_.buffer_, LOG_BUFFER_SIZE, off);
+        if (len == -1 || len == 0) return;
+        off += len;
+        int offset = 0;
+        while (offset < len - 1) {
+            LogType log_type_ = *reinterpret_cast<const LogType *>(buffer_.buffer_ + offset);
+            if (log_type_ == LogType::begin) {
+                auto log = std::make_shared<BeginLogRecord>();
+                log->deserialize(buffer_.buffer_ + offset);
+                offset += log->log_tot_len_;
+                logs.push_back(log);
+                log->format_print();
+                att[log->log_tid_] = log->lsn_;
+            } else if (log_type_ == LogType::commit) {
+                auto log = std::make_shared<CommitLogRecord>();
+                log->deserialize(buffer_.buffer_ + offset);
+                offset += log->log_tot_len_;
+                logs.push_back(log);
+                log->format_print();
+                att.erase(log->log_tid_);
+            } else if (log_type_ == LogType::ABORT) {
+                auto log = std::make_shared<AbortLogRecord>();
+                log->deserialize(buffer_.buffer_ + offset);
+                offset += log->log_tot_len_;
+                logs.push_back(log);
+                log->format_print();
+                att.erase(log->log_tid_);
+            } else if (log_type_ == LogType::UPDATE) {
+                auto log = std::make_shared<UpdateLogRecord>();
+                log->deserialize(buffer_.buffer_ + offset);
+                offset += log->log_tot_len_;
+                logs.push_back(log);
+                log->format_print();
+                att[log->log_tid_] = log->lsn_;
+            } else if (log_type_ == LogType::DELETE) {
+                auto log = std::make_shared<DeleteLogRecord>();
+                log->deserialize(buffer_.buffer_ + offset);
+                offset += log->log_tot_len_;
+                logs.push_back(log);
+                log->format_print();
+                att[log->log_tid_] = log->lsn_;
+            } else if (log_type_ == LogType::INSERT) {
+                auto log = std::make_shared<InsertLogRecord>();
+                log->deserialize(buffer_.buffer_ + offset);
+                offset += log->log_tot_len_;
+                logs.push_back(log);
+                log->format_print();
+                att[log->log_tid_] = log->lsn_;
+            } else {
+                std::cout << "huai le\n";
+            }
+        }
+    }
 
 }
 
@@ -28,5 +83,36 @@ void RecoveryManager::redo() {
  * @description: 回滚未完成的事务
  */
 void RecoveryManager::undo() {
-
+    for (auto [u, v]: att) {
+        int now = v;
+        while (now != -1) {
+            if (auto log = std::dynamic_pointer_cast<InsertLogRecord>(logs[now])) {
+                // 回滚insert
+                assert(sm_manager_->fhs_.count(log->table_name_));
+                auto rfh = sm_manager_->fhs_[log->table_name_].get();
+                std::cout << "回滚insert\n";
+                rfh->delete_record(log->rid_, nullptr);
+                now = log->prev_lsn_;
+            } else if (auto log = std::dynamic_pointer_cast<UpdateLogRecord>(logs[now])) {
+                // 回滚update
+                assert(sm_manager_->fhs_.count(log->table_name_));
+                auto rfh = sm_manager_->fhs_[log->table_name_].get();
+                std::cout << "回滚update\n";
+                rfh->delete_record(log->rid_, nullptr);
+                rfh->insert_record(log->rid_,log->update_value_.data);
+                now = log->prev_lsn_;
+            } else if (auto log = std::dynamic_pointer_cast<DeleteLogRecord>(logs[now])) {
+                //回滚delete
+                assert(sm_manager_->fhs_.count(log->table_name_));
+                auto rfh = sm_manager_->fhs_[log->table_name_].get();
+                std::cout << "回滚delete\n";
+                rfh->insert_record(log->rid_, log->delete_value_.data);
+                now = log->prev_lsn_;
+            } else if (auto log = std::dynamic_pointer_cast<BeginLogRecord>(logs[now])) {
+                break;
+            } else {
+                std::cout << "undo 不太对\n";
+            }
+        }
+    }
 }

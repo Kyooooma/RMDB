@@ -31,6 +31,10 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     }
     std::unique_lock<std::mutex> lock(latch_);
     txn_map.emplace(txn->get_transaction_id(), txn);
+    auto *log = new BeginLogRecord(txn->get_transaction_id());
+    log->prev_lsn_ = txn->get_prev_lsn();
+    log_manager->add_log_to_buffer(log);
+    txn->set_prev_lsn(log->lsn_);
     return txn;
 }
 
@@ -54,7 +58,10 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     //释放事务相关资源，eg.锁集
     txn->clear();
     // 4. 把事务日志刷入磁盘中
-    log_manager->flush_log_to_disk();
+    auto *log = new CommitLogRecord(txn->get_transaction_id());
+    log->prev_lsn_ = txn->get_prev_lsn();
+    log_manager->add_log_to_buffer(log);
+    txn->set_prev_lsn(log->lsn_);
     // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
 }
@@ -143,7 +150,10 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     //释放事务相关资源，eg.锁集
     txn->clear();
     // 4. 把事务日志刷入磁盘中
-    log_manager->flush_log_to_disk();
+    auto *log = new AbortLogRecord(txn->get_transaction_id());
+    log->prev_lsn_ = txn->get_prev_lsn();
+    log_manager->add_log_to_buffer(log);
+    txn->set_prev_lsn(log->lsn_);
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
 }
