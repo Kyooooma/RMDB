@@ -19,7 +19,9 @@ See the Mulan PSL v2 for more details. */
 lsn_t LogManager::add_log_to_buffer(LogRecord* log_record) {
     std::unique_lock<std::mutex> lock(latch_);
     if (log_buffer_.is_full(log_record->log_tot_len_)) {
+        lock.unlock();
         flush_log_to_disk();
+        lock.lock();
         persist_lsn_ = log_record->lsn_ - 1;
     }
     char *dest = new char [log_record->log_tot_len_];
@@ -27,6 +29,7 @@ lsn_t LogManager::add_log_to_buffer(LogRecord* log_record) {
     log_record->serialize(dest);
     memcpy(log_buffer_.buffer_ + log_buffer_.offset_, dest, log_record->log_tot_len_);
     log_buffer_.offset_ += log_record->log_tot_len_;
+    lock.unlock();
     flush_log_to_disk();
     return log_record->lsn_;
 }
