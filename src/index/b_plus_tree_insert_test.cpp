@@ -275,7 +275,7 @@ TEST_F(BPlusTreeTests, InsertTest) {
  * @note lab2 计分：20 points
  */
 TEST_F(BPlusTreeTests, LargeScaleTest) {
-    const int64_t scale = 10000;
+    const int64_t scale = 20000;
     const int order = 256;
 
     assert(order > 2 && order <= ih_->file_hdr_->btree_order_);

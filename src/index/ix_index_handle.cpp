@@ -384,24 +384,14 @@ std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Ri
     std::scoped_lock lock{root_latch_};
     auto leaf = find_leaf_page(key, Operation::FIND, transaction).first;
     int old_cnt = leaf->get_size();
-    //插入前的最小值
-    char *old_key = (char *) malloc(file_hdr_->col_tot_len_ * sizeof(char));
-    if (leaf->get_size() > 0) memcpy(old_key, leaf->get_key(0), file_hdr_->col_tot_len_);
     // 插入数据
     int cnt = leaf->insert(key, value);
     if(old_cnt == cnt){
         //说明插入失败
         return {leaf->get_page_id().page_no, false};
     }
-    //插入后的最小值
-    char *new_key = (char *) malloc(file_hdr_->col_tot_len_ * sizeof(char));
-    memcpy(new_key, leaf->get_key(0), file_hdr_->col_tot_len_);
-    if (cnt > 1 && memcmp(old_key, new_key, file_hdr_->col_tot_len_) != 0) {
-        //说明最小值变了, 若有父节点，则需要更新键值
-        if (!leaf->is_root_page()) {
-            maintain_parent(leaf);
-        }
-    }
+    //插入后更新父节点键值
+    maintain_parent(leaf);
     int pos = leaf->lower_bound(key), res = -1;
     if (cnt == leaf->get_max_size()) {
         //split
@@ -428,8 +418,6 @@ std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Ri
         res = leaf->get_page_no();
         buffer_pool_manager_->unpin_page(leaf->get_page_id(), true);
     }
-    free(old_key);
-    free(new_key);
     return {res, true};
 }
 
@@ -503,14 +491,15 @@ bool IxIndexHandle::coalesce_or_redistribute(IxNodeHandle *node, Transaction *tr
     if (node->is_root_page()) {
         //根节点
         if(adjust_root(node)){
-            buffer_pool_manager_->unpin_page(node->get_page_id(), true);
             if(node->is_leaf_page()){
                 erase_leaf(node);
             }
             release_node_handle(*node);
+            buffer_pool_manager_->unpin_page(node->get_page_id(), true);
             free(node);
             return true;
         }
+        buffer_pool_manager_->unpin_page(node->get_page_id(), true);
         return false;
     }
     //获取父节点
@@ -561,10 +550,9 @@ bool IxIndexHandle::adjust_root(IxNodeHandle *old_root_node) {
         int child_id = old_root_node->remove_and_return_only_child();
         auto child = fetch_node(child_id);
         child->page_hdr->parent = IX_NO_PAGE;
-        file_hdr_->root_page_ = child->get_page_no();
+        file_hdr_->root_page_ = child_id;
         release_node_handle(*old_root_node);
         buffer_pool_manager_->unpin_page(child->get_page_id(), true);
-        buffer_pool_manager_->unpin_page(old_root_node->get_page_id(), true);
         return true;
     }
     return false;

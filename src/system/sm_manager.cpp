@@ -311,31 +311,6 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<std::s
     auto pos = std::find(tab.indexes.begin(), tab.indexes.end(), im);
     tab.indexes.erase(pos);
     auto ix_name = ix_manager_->get_index_name(tab_name, cols);
-    if(!ihs_.count(ix_name)){
-        //如果没有打开则打开文件
-        ihs_.emplace(ix_name, ix_manager_->open_index(tab_name, cols));
-    }
-    if(!fhs_.count(tab_name)){
-        //如果没有打开表文件则打开
-        fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
-    }
-    //将已有数据从b+树中删除
-    auto rfh = fhs_[tab_name].get();
-    auto ih = ihs_[ix_name].get();
-    auto scan_ = std::make_unique<RmScan>(rfh);
-    context->lock_mgr_->lock_shared_on_table(context->txn_, rfh->GetFd());
-    while (!scan_->is_end()) {
-        auto rid_ = scan_->rid();
-        auto rec = rfh->get_record(rid_, context);
-        char *key = new char[tot_len];
-        int offset = 0;
-        for (auto & col : cols) {
-            memcpy(key + offset, rec->data + col.offset, col.len);
-            offset += col.len;
-        }
-        ih->delete_entry(key, context->txn_);
-        scan_->next();
-    }
     if (ihs_.count(ix_name)) {// 说明被打开了
         disk_manager_->close_file(ihs_[ix_name]->get_fd());
         ihs_.erase(ix_name);

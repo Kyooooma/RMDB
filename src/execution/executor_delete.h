@@ -41,16 +41,23 @@ public:
 
     std::string getType() override { return "DeleteExecutor"; };
 
-    void delete_index(RmRecord* rec){
+    void delete_index(RmRecord* rec, Rid rid_){
         // 删除索引
         for (auto &index: tab_.indexes) {
-            auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+            auto ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
+            auto ih = sm_manager_->ihs_.at(ix_name).get();
             char *key = new char[index.col_tot_len];
             int offset = 0;
             for (size_t j = 0; j < index.col_num; ++j) {
                 memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
                 offset += index.cols[j].len;
             }
+            //更新索引删除日志
+            auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, index.col_tot_len);
+            index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
+            context_->log_mgr_->add_log_to_buffer(index_log);
+            context_->txn_->set_prev_lsn(index_log->lsn_);
+            //删除索引
             ih->delete_entry(key, context_->txn_);
             free(key);
         }
@@ -65,7 +72,7 @@ public:
             context_->log_mgr_->add_log_to_buffer(logRecord);
             context_->txn_->set_prev_lsn(logRecord->lsn_);
             //实际删除
-            delete_index(rec.get());
+            delete_index(rec.get(), rid);
             fh_->delete_record(rid, context_);
             //更新事务
             auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);

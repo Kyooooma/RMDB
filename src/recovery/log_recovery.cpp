@@ -15,9 +15,10 @@ See the Mulan PSL v2 for more details. */
  */
 void RecoveryManager::analyze() {
     int off = 0;
+    std::unordered_set<std::string> tables;
     while (true) {
         int len = disk_manager_->read_log(buffer_.buffer_, LOG_BUFFER_SIZE, off);
-        if (len == -1 || len == 0) return;
+        if (len == -1 || len == 0) break;
         off += len;
         int offset = 0;
         while (offset < len) {
@@ -53,6 +54,7 @@ void RecoveryManager::analyze() {
                 log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
+                tables.insert(log->table_name_);
             } else if (log_type_ == LogType::DELETE) {
                 auto log = std::make_shared<DeleteLogRecord>();
                 log->deserialize(buffer_.buffer_ + offset);
@@ -61,8 +63,26 @@ void RecoveryManager::analyze() {
                 log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
+                tables.insert(log->table_name_);
             } else if (log_type_ == LogType::INSERT) {
                 auto log = std::make_shared<InsertLogRecord>();
+                log->deserialize(buffer_.buffer_ + offset);
+                offset += log->log_tot_len_;
+                logs.push_back(log);
+                log->format_print();
+                assert(att.count(log->log_tid_));
+                att[log->log_tid_] = log->lsn_;
+                tables.insert(log->table_name_);
+            } else if (log_type_ == LogType::INDEX_INSERT) {
+                auto log = std::make_shared<IndexInsertLogRecord>();
+                log->deserialize(buffer_.buffer_ + offset);
+                offset += log->log_tot_len_;
+                logs.push_back(log);
+                log->format_print();
+                assert(att.count(log->log_tid_));
+                att[log->log_tid_] = log->lsn_;
+            } else if (log_type_ == LogType::INDEX_DELETE) {
+                auto log = std::make_shared<IndexDeleteLogRecord>();
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
@@ -74,7 +94,20 @@ void RecoveryManager::analyze() {
             }
         }
     }
-
+    //清空索引并重建
+    for(auto &i : tables){
+        auto &tab = sm_manager_->db_.get_table(i);
+        for(const auto& index : tab.indexes){
+            auto ix_name = sm_manager_->get_ix_manager()->get_index_name(tab.name, index.cols);
+            if (sm_manager_->ihs_.count(ix_name)) {// 说明被打开了
+                disk_manager_->close_file(sm_manager_->ihs_[ix_name]->get_fd());
+                sm_manager_->ihs_.erase(ix_name);
+            }
+            sm_manager_->get_ix_manager()->destroy_index(tab.name, index.cols);
+            sm_manager_->get_ix_manager()->create_index(tab.name, index.cols);
+            sm_manager_->ihs_.emplace(ix_name, sm_manager_->get_ix_manager()->open_index(tab.name, index.cols));
+        }
+    }
 }
 
 /**
@@ -82,36 +115,43 @@ void RecoveryManager::analyze() {
  */
 void RecoveryManager::redo() {
     rollback(true);
-    for(const auto& log_ : logs){
+    for (const auto &log_: logs) {
         if (auto log = std::dynamic_pointer_cast<InsertLogRecord>(log_)) {
             // redo insert
             std::cout << "redo insert\n";
             assert(sm_manager_->fhs_.count(log->table_name_));
             auto rfh = sm_manager_->fhs_[log->table_name_].get();
-            try{
+            try {
                 rfh->insert_record(log->rid_, log->insert_value_.data);
-                insert_index(&(log->insert_value_), log->rid_, log->table_name_);
-            }catch (RMDBError &e){
+            } catch (RMDBError &e) {
                 std::cout << "dirty_page\n";
                 auto new_rid = rfh->insert_record(log->insert_value_.data, nullptr);
                 assert(new_rid == log->rid_);
-                insert_index(&(log->insert_value_), log->rid_, log->table_name_);
             }
         } else if (auto log = std::dynamic_pointer_cast<UpdateLogRecord>(log_)) {
             // redo update
             std::cout << "redo update\n";
             assert(sm_manager_->fhs_.count(log->table_name_));
             auto rfh = sm_manager_->fhs_[log->table_name_].get();
-            delete_index(&(log->update_value_), log->table_name_);
             rfh->update_record(log->rid_, log->now_value_.data, nullptr);
-            insert_index(&(log->now_value_), log->rid_, log->table_name_);
         } else if (auto log = std::dynamic_pointer_cast<DeleteLogRecord>(log_)) {
             //redo delete
             std::cout << "redo delete\n";
             assert(sm_manager_->fhs_.count(log->table_name_));
             auto rfh = sm_manager_->fhs_[log->table_name_].get();
-            delete_index(&(log->delete_value_), log->table_name_);
             rfh->delete_record(log->rid_, nullptr);
+        } else if (auto log = std::dynamic_pointer_cast<IndexInsertLogRecord>(log_)) {
+            //redo index insert
+            std::cout << "redo index insert\n";
+            assert(sm_manager_->ihs_.count(log->ix_name_));
+            auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
+            std::cout << ih->insert_entry(log->key_, log->rid_, nullptr).second << '\n';
+        } else if (auto log = std::dynamic_pointer_cast<IndexDeleteLogRecord>(log_)) {
+            //redo index delete
+            std::cout << "redo index delete\n";
+            assert(sm_manager_->ihs_.count(log->ix_name_));
+            auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
+            std::cout << ih->delete_entry(log->key_, nullptr) << '\n';
         } else if (auto log = std::dynamic_pointer_cast<BeginLogRecord>(log_)) {
             continue;
         } else if (auto log = std::dynamic_pointer_cast<AbortLogRecord>(log_)) {
@@ -131,7 +171,7 @@ void RecoveryManager::undo() {
     rollback(false);
 }
 
-void RecoveryManager::rollback(bool flag){
+void RecoveryManager::rollback(bool flag) {
     for (auto i = att.rbegin(); i != att.rend(); i++) {
         auto [u, v] = *i;
         int now = v;
@@ -141,10 +181,9 @@ void RecoveryManager::rollback(bool flag){
                 assert(sm_manager_->fhs_.count(log->table_name_));
                 auto rfh = sm_manager_->fhs_[log->table_name_].get();
                 std::cout << "回滚insert\n";
-                try{
-                    delete_index(&(log->insert_value_), log->table_name_);
+                try {
                     rfh->delete_record(log->rid_, nullptr);
-                }catch (RMDBError &e){
+                } catch (RMDBError &e) {
                     std::cout << e.what() << '\n';
                 }
                 now = log->prev_lsn_;
@@ -153,11 +192,9 @@ void RecoveryManager::rollback(bool flag){
                 assert(sm_manager_->fhs_.count(log->table_name_));
                 auto rfh = sm_manager_->fhs_[log->table_name_].get();
                 std::cout << "回滚update\n";
-                try{
-                    delete_index(&(log->now_value_), log->table_name_);
-                    insert_index(&(log->update_value_), log->rid_, log->table_name_);
+                try {
                     rfh->update_record(log->rid_, log->update_value_.data, nullptr);
-                }catch (RMDBError &e){
+                } catch (RMDBError &e) {
                     std::cout << e.what() << '\n';
                 }
                 now = log->prev_lsn_;
@@ -166,62 +203,43 @@ void RecoveryManager::rollback(bool flag){
                 assert(sm_manager_->fhs_.count(log->table_name_));
                 auto rfh = sm_manager_->fhs_[log->table_name_].get();
                 std::cout << "回滚delete\n";
-                try{
-                    insert_index(&(log->delete_value_), log->rid_, log->table_name_);
+                try {
                     rfh->insert_record(log->rid_, log->delete_value_.data);
-                }catch (RMDBError &e){
+                } catch (RMDBError &e) {
                     std::cout << e.what() << '\n';
                 }
+                now = log->prev_lsn_;
+            } else if (auto log = std::dynamic_pointer_cast<IndexInsertLogRecord>(logs[now])) {
+                //回滚index insert
+//                assert(sm_manager_->ihs_.count(log->ix_name_));
+//                auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
+//                std::cout << "回滚index insert\n" <<
+//                          ih->delete_entry(log->key_, nullptr) << '\n';
+                now = log->prev_lsn_;
+            } else if (auto log = std::dynamic_pointer_cast<IndexDeleteLogRecord>(logs[now])) {
+                //回滚index delete
+//                assert(sm_manager_->ihs_.count(log->ix_name_));
+//                auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
+//                std::cout << "回滚index delete\n" <<
+//                          ih->insert_entry(log->key_, log->rid_, nullptr).second << '\n';
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<BeginLogRecord>(logs[now])) {
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<AbortLogRecord>(logs[now])) {
-                if(flag){
+                if (flag) {
                     now = log->prev_lsn_;
-                }else{
+                } else {
                     break;
                 }
             } else if (auto log = std::dynamic_pointer_cast<CommitLogRecord>(logs[now])) {
-                if(flag){
+                if (flag) {
                     now = log->prev_lsn_;
-                }else{
+                } else {
                     break;
                 }
             } else {
                 std::cout << "undo 不太对\n";
             }
         }
-    }
-}
-
-void RecoveryManager::delete_index(RmRecord* rec, std::string tab_name_){
-    // 删除索引
-    auto &tab_ = sm_manager_->db_.get_table(tab_name_);
-    for (auto &index: tab_.indexes) {
-        auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-        char *key = new char[index.col_tot_len];
-        int offset = 0;
-        for (size_t j = 0; j < index.col_num; ++j) {
-            memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
-            offset += index.cols[j].len;
-        }
-        ih->delete_entry(key, nullptr);
-        free(key);
-    }
-}
-
-bool RecoveryManager::insert_index(RmRecord* rec, Rid rid_, std::string tab_name_){
-    // 插入索引
-    auto &tab_ = sm_manager_->db_.get_table(tab_name_);
-    for (auto & index : tab_.indexes) {
-        auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-        char *key = new char[index.col_tot_len];
-        int offset = 0;
-        for (size_t j = 0; j < index.col_num; ++j) {
-            memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
-            offset += index.cols[j].len;
-        }
-        ih->insert_entry(key, rid_, nullptr);
-        free(key);
     }
 }
