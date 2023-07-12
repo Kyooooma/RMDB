@@ -19,23 +19,31 @@ void RecoveryManager::analyze() {
     while (true) {
         int len = disk_manager_->read_log(buffer_.buffer_, LOG_BUFFER_SIZE, off);
         if (len == -1 || len == 0) break;
-        off += len;
         int offset = 0;
         while (offset < len) {
+            if(offset + OFFSET_LOG_TOT_LEN > len){
+                std::cout << offset << " " << OFFSET_LOG_TOT_LEN << " " << len << "\n";
+                break;
+            }
+            auto log_tot_len_ = *reinterpret_cast<const uint32_t*>(buffer_.buffer_ + offset + OFFSET_LOG_TOT_LEN);
+            if(offset + log_tot_len_ > len) {
+                std::cout << offset << " " << log_tot_len_ << " " << len << "\n";
+                break;
+            }
             LogType log_type_ = *reinterpret_cast<const LogType *>(buffer_.buffer_ + offset);
             if (log_type_ == LogType::begin) {
                 auto log = std::make_shared<BeginLogRecord>();
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                log->format_print();
+//                log->format_print();
                 att[log->log_tid_] = log->lsn_;
             } else if (log_type_ == LogType::commit) {
                 auto log = std::make_shared<CommitLogRecord>();
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                log->format_print();
+//                log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
             } else if (log_type_ == LogType::ABORT) {
@@ -43,7 +51,7 @@ void RecoveryManager::analyze() {
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                log->format_print();
+//                log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
             } else if (log_type_ == LogType::UPDATE) {
@@ -51,7 +59,7 @@ void RecoveryManager::analyze() {
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                log->format_print();
+//                log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
                 tables.insert(log->table_name_);
@@ -60,7 +68,7 @@ void RecoveryManager::analyze() {
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                log->format_print();
+//                log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
                 tables.insert(log->table_name_);
@@ -69,7 +77,7 @@ void RecoveryManager::analyze() {
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                log->format_print();
+//                log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
                 tables.insert(log->table_name_);
@@ -78,7 +86,7 @@ void RecoveryManager::analyze() {
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                log->format_print();
+//                log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
             } else if (log_type_ == LogType::INDEX_DELETE) {
@@ -86,13 +94,15 @@ void RecoveryManager::analyze() {
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                log->format_print();
+//                log->format_print();
                 assert(att.count(log->log_tid_));
                 att[log->log_tid_] = log->lsn_;
             } else {
-                std::cout << "huai le\n";
+                std::cout << "huai le\n" << log_type_;
+                exit(0);
             }
         }
+        off += offset;
     }
     //清空索引并重建
     for(auto &i : tables){
