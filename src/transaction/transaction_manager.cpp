@@ -52,19 +52,23 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     // 5. 更新事务状态
     //释放所有锁
     auto ws = txn->get_write_set();
+    std::unordered_set<int> fds;
     while(!ws->empty()){
         auto front = ws->front();
         ws->pop_front();
         auto tab_name = front->GetTableName();
         assert(sm_manager_->fhs_.count(tab_name));
         auto rfh = sm_manager_->fhs_[tab_name].get();
-        sm_manager_->get_bpm()->flush_all_pages(rfh->GetFd());
+        fds.insert(rfh->GetFd());
     }
+    //释放事务相关资源，eg.锁集
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){
         lock_manager_->unlock(txn, i);
     }
-    //释放事务相关资源，eg.锁集
+    for(auto i : fds){
+        sm_manager_->get_bpm()->flush_all_pages(i);
+    }
     txn->clear();
     // 4. 把事务日志刷入磁盘中
     auto *log = new CommitLogRecord(txn->get_transaction_id());
