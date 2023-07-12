@@ -25,10 +25,11 @@ public:
 
 class RecoveryManager {
 public:
-    RecoveryManager(DiskManager* disk_manager, BufferPoolManager* buffer_pool_manager, SmManager* sm_manager) {
+    RecoveryManager(DiskManager* disk_manager, BufferPoolManager* buffer_pool_manager, SmManager* sm_manager, LogManager* log_manager) {
         disk_manager_ = disk_manager;
         buffer_pool_manager_ = buffer_pool_manager;
         sm_manager_ = sm_manager;
+        log_manager_ = log_manager;
     }
     void analyze();
     void redo();
@@ -40,6 +41,7 @@ private:
     DiskManager* disk_manager_;                                     // 用来读写文件
     BufferPoolManager* buffer_pool_manager_;                        // 对页面进行读写
     SmManager* sm_manager_;                                         // 访问数据库元数据
+    LogManager* log_manager_;
     void delete_index(RmRecord *rec, std::string tab_name_);
 
     bool insert_index(RmRecord *rec, Rid rid_, std::string tab_name_);

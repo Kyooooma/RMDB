@@ -173,7 +173,7 @@ public:
         log_tot_len_ += sizeof(int);
         log_tot_len_ += insert_value_.size;
         log_tot_len_ += sizeof(Rid);
-        table_name_size_ = table_name.length();
+        table_name_size_ = table_name.length() + 1;
         table_name_ = new char[table_name_size_];
         memcpy(table_name_, table_name.c_str(), table_name_size_);
         log_tot_len_ += sizeof(size_t) + table_name_size_;
@@ -240,7 +240,7 @@ public:
         log_tot_len_ += sizeof(int);
         log_tot_len_ += delete_value_.size;
         log_tot_len_ += sizeof(Rid);
-        table_name_size_ = table_name.length();
+        table_name_size_ = table_name.length() + 1;
         table_name_ = new char[table_name_size_];
         memcpy(table_name_, table_name.c_str(), table_name_size_);
         log_tot_len_ += sizeof(size_t) + table_name_size_;
@@ -311,7 +311,7 @@ public:
         log_tot_len_ += update_value_.size;
         log_tot_len_ += now_value_.size;
         log_tot_len_ += sizeof(Rid);
-        table_name_size_ = table_name.length();
+        table_name_size_ = table_name.length() + 1;
         table_name_ = new char[table_name_size_];
         memcpy(table_name_, table_name.c_str(), table_name_size_);
         log_tot_len_ += sizeof(size_t) + table_name_size_;
@@ -393,6 +393,8 @@ public:
     void flush_log_to_disk();
 
     LogBuffer* get_log_buffer() { return &log_buffer_; }
+
+    void add() {global_lsn_++;}
 
 private:    
     std::atomic<lsn_t> global_lsn_{0};  // 全局lsn，递增，用于为每条记录分发lsn

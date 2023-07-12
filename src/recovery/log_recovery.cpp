@@ -21,6 +21,7 @@ void RecoveryManager::analyze() {
         off += len;
         int offset = 0;
         while (offset < len) {
+            log_manager_->add();
             LogType log_type_ = *reinterpret_cast<const LogType *>(buffer_.buffer_ + offset);
             if (log_type_ == LogType::begin) {
                 auto log = std::make_shared<BeginLogRecord>();
