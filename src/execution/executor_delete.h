@@ -59,14 +59,17 @@ public:
     std::unique_ptr<RmRecord> Next() override {
         for(auto rid : rids_){
             auto rec = fh_->get_record(rid, context_);
-            delete_index(rec.get());
-            fh_->delete_record(rid, context_);
-            auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
-            context_->txn_->append_write_record(wr);
+            //更新日志
             auto *logRecord = new DeleteLogRecord(context_->txn_->get_transaction_id(), *rec, rid,tab_name_);
             logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
             context_->log_mgr_->add_log_to_buffer(logRecord);
             context_->txn_->set_prev_lsn(logRecord->lsn_);
+            //实际删除
+            delete_index(rec.get());
+            fh_->delete_record(rid, context_);
+            //更新事务
+            auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
+            context_->txn_->append_write_record(wr);
         }
         return nullptr;
     }

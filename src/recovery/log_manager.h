@@ -300,13 +300,16 @@ public:
         prev_lsn_ = INVALID_LSN;
         table_name_ = nullptr;
     }
-    UpdateLogRecord(txn_id_t txn_id, RmRecord& update_value, Rid& rid, std::string table_name)
+    UpdateLogRecord(txn_id_t txn_id, RmRecord& update_value, Rid& rid, std::string table_name, RmRecord& now_value)
     : UpdateLogRecord() {
         log_tid_ = txn_id;
         update_value_ = update_value;
+        now_value_ = now_value;
         rid_ = rid;
         log_tot_len_ += sizeof(int);
+        log_tot_len_ += sizeof(int);
         log_tot_len_ += update_value_.size;
+        log_tot_len_ += now_value_.size;
         log_tot_len_ += sizeof(Rid);
         table_name_size_ = table_name.length();
         table_name_ = new char[table_name_size_];
@@ -322,6 +325,10 @@ public:
         offset += sizeof(int);
         memcpy(dest + offset, update_value_.data, update_value_.size);
         offset += update_value_.size;
+        memcpy(dest + offset, &now_value_.size, sizeof(int));
+        offset += sizeof(int);
+        memcpy(dest + offset, now_value_.data, update_value_.size);
+        offset += now_value_.size;
         memcpy(dest + offset, &rid_, sizeof(Rid));
         offset += sizeof(Rid);
         memcpy(dest + offset, &table_name_size_, sizeof(size_t));
@@ -333,6 +340,8 @@ public:
         LogRecord::deserialize(src);
         update_value_.Deserialize(src + OFFSET_LOG_DATA);
         int offset = OFFSET_LOG_DATA + update_value_.size + sizeof(int);
+        now_value_.Deserialize(src + offset);
+        offset += (int)(now_value_.size + sizeof(int));
         rid_ = *reinterpret_cast<const Rid*>(src + offset);
         offset += sizeof(Rid);
         table_name_size_ = *reinterpret_cast<const size_t*>(src + offset);
@@ -344,11 +353,13 @@ public:
         printf("update record\n");
         LogRecord::format_print();
         printf("update_value: %s\n", update_value_.data);
+        printf("now_value: %s\n", now_value_.data);
         printf("update rid: %d, %d\n", rid_.page_no, rid_.slot_no);
         printf("table name: %s\n", table_name_);
     }
 
     RmRecord update_value_;     // 更新前的记录
+    RmRecord now_value_;        // 更新后的记录
     Rid rid_;                   // 记录更新的位置
     char* table_name_;          // 更新记录的表名称
     size_t table_name_size_;    // 表名称的大小

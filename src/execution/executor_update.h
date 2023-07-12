@@ -138,16 +138,16 @@ public:
                 upd_cnt--;
                 break;
             }
+            //更新日志
+            auto *logRecord = new UpdateLogRecord(context_->txn_->get_transaction_id(), *old_rec, rid,tab_name_, *rec);
+            logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
+            context_->log_mgr_->add_log_to_buffer(logRecord);
+            context_->txn_->set_prev_lsn(logRecord->lsn_);
             //更新记录
             fh_->update_record(rid, rec->data, context_);
             //更新事务
             auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
             context_->txn_->append_write_record(wr);
-            //更新日志
-            auto *logRecord = new UpdateLogRecord(context_->txn_->get_transaction_id(), *old_rec, rid,tab_name_);
-            logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->log_mgr_->add_log_to_buffer(logRecord);
-            context_->txn_->set_prev_lsn(logRecord->lsn_);
         }
 
         if(is_fail){
@@ -162,6 +162,12 @@ public:
                 auto now_rec = fh_->get_record(rid_, context_);
                 delete_index(now_rec.get());
                 insert_index(&rec_, rid_);
+                //更新日志
+                auto *logRecord = new UpdateLogRecord(context_->txn_->get_transaction_id(), *now_rec, rid_,tab_name_, rec_);
+                logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
+                context_->log_mgr_->add_log_to_buffer(logRecord);
+                context_->txn_->set_prev_lsn(logRecord->lsn_);
+
                 fh_->update_record(rid_, rec_.data, context_);
                 context_->txn_->delete_write_record();
             }

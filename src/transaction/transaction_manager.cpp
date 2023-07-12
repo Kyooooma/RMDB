@@ -126,17 +126,37 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
         if(type == WType::INSERT_TUPLE){
             //插入操作, 应该删除
             std::cout << "rollback insert\n";
+
+            //更新日志
+            auto *logRecord = new DeleteLogRecord(context->txn_->get_transaction_id(), rec, rid,tab_name);
+            logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
+            context->log_mgr_->add_log_to_buffer(logRecord);
+            context->txn_->set_prev_lsn(logRecord->lsn_);
+
             delete_index(tab_name, &rec);
             rfh->delete_record(rid, context);
         }else if(type == WType::DELETE_TUPLE){
             //删除操作, 应该插入
             std::cout << "rollback delete\n";
+            //更新日志-插入
+            auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid,tab_name);
+            logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
+            context->log_mgr_->add_log_to_buffer(logRecord);
+            context->txn_->set_prev_lsn(logRecord->lsn_);
+
             insert_index(tab_name, &rec, rid);
             rfh->insert_record(rid, rec.data);
         }else if(type == WType::UPDATE_TUPLE){
             //更新操作, 应该更新
             std::cout << "rollback update\n";
             auto old = rfh->get_record(rid, context);
+
+            //更新日志
+            auto *logRecord = new UpdateLogRecord(context->txn_->get_transaction_id(), *old, rid,tab_name, rec);
+            logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
+            context->log_mgr_->add_log_to_buffer(logRecord);
+            context->txn_->set_prev_lsn(logRecord->lsn_);
+
             delete_index(tab_name, old.get());
             rfh->update_record(rid, rec.data, context);
             insert_index(tab_name, &rec, rid);

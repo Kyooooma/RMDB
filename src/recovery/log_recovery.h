@@ -40,4 +40,9 @@ private:
     DiskManager* disk_manager_;                                     // 用来读写文件
     BufferPoolManager* buffer_pool_manager_;                        // 对页面进行读写
     SmManager* sm_manager_;                                         // 访问数据库元数据
+    void delete_index(RmRecord *rec, std::string tab_name_);
+
+    bool insert_index(RmRecord *rec, Rid rid_, std::string tab_name_);
+
+    void rollback(bool flag);
 };

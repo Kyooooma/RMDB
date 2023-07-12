@@ -59,10 +59,14 @@ public:
             memcpy(rec.data + col.offset, val.raw->data, col.len);
         }
 
-        //上一个表级的X锁
         // 插入记录, 获取rid
-
+        //实际插入
         rid_ = fh_->insert_record(rec.data, context_);
+        //更新日志-插入
+        auto *logRecord = new InsertLogRecord(context_->txn_->get_transaction_id(), rec, rid_,tab_name_);
+        logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
+        context_->log_mgr_->add_log_to_buffer(logRecord);
+        context_->txn_->set_prev_lsn(logRecord->lsn_);
         // 更新索引
         for (int i = 0; i < tab_.indexes.size(); i++) {
             auto &index = tab_.indexes[i];
@@ -96,6 +100,12 @@ public:
                 ih->delete_entry(key, context_->txn_);
                 free(key);
             }
+            //更新日志
+            auto *logRecord_ = new DeleteLogRecord(context_->txn_->get_transaction_id(), rec, rid_,tab_name_);
+            logRecord_->prev_lsn_ = context_->txn_->get_prev_lsn();
+            context_->log_mgr_->add_log_to_buffer(logRecord_);
+            context_->txn_->set_prev_lsn(logRecord_->lsn_);
+            //实际删除
             fh_->delete_record(rid_, context_);
             throw RMDBError("Insert Error!!");
         }
@@ -103,11 +113,6 @@ public:
         //更新事务
         auto *wr = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_, rec);
         context_->txn_->append_write_record(wr);
-        //更新日志
-        auto *logRecord = new InsertLogRecord(context_->txn_->get_transaction_id(), rec, rid_,tab_name_);
-        logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
-        context_->log_mgr_->add_log_to_buffer(logRecord);
-        context_->txn_->set_prev_lsn(logRecord->lsn_);
         return nullptr;
     }
 
