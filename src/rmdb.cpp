@@ -312,10 +312,10 @@ int main(int argc, char **argv) {
         recovery->redo();
         recovery->undo();
 
-        pthread_t thread_id;
-        if(pthread_create(&thread_id, nullptr, &log_timer, nullptr) != 0){
-            std::cout << "log_timer error!\n";
-        }
+//        pthread_t thread_id;
+//        if(pthread_create(&thread_id, nullptr, &log_timer, nullptr) != 0){
+//            std::cout << "log_timer error!\n";
+//        }
 
         // 开启服务端，开始接受客户端连接
         start_server();

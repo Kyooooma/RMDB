@@ -155,8 +155,8 @@ void RecoveryManager::rollback(bool flag){
                 std::cout << "回滚update\n";
                 try{
                     delete_index(&(log->now_value_), log->table_name_);
-                    rfh->update_record(log->rid_, log->update_value_.data, nullptr);
                     insert_index(&(log->update_value_), log->rid_, log->table_name_);
+                    rfh->update_record(log->rid_, log->update_value_.data, nullptr);
                 }catch (RMDBError &e){
                     std::cout << e.what() << '\n';
                 }
@@ -196,7 +196,7 @@ void RecoveryManager::rollback(bool flag){
 
 void RecoveryManager::delete_index(RmRecord* rec, std::string tab_name_){
     // 删除索引
-    auto tab_ = sm_manager_->db_.get_table(tab_name_);
+    auto &tab_ = sm_manager_->db_.get_table(tab_name_);
     for (auto &index: tab_.indexes) {
         auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
         char *key = new char[index.col_tot_len];
@@ -212,7 +212,7 @@ void RecoveryManager::delete_index(RmRecord* rec, std::string tab_name_){
 
 bool RecoveryManager::insert_index(RmRecord* rec, Rid rid_, std::string tab_name_){
     // 插入索引
-    auto tab_ = sm_manager_->db_.get_table(tab_name_);
+    auto &tab_ = sm_manager_->db_.get_table(tab_name_);
     for (auto & index : tab_.indexes) {
         auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
         char *key = new char[index.col_tot_len];
