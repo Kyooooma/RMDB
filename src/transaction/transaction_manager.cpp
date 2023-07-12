@@ -71,7 +71,6 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     log->prev_lsn_ = txn->get_prev_lsn();
     log_manager->add_log_to_buffer(log);
     txn->set_prev_lsn(log->lsn_);
-    log_manager->flush_log_to_disk();
     // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
 }
@@ -189,7 +188,6 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     log->prev_lsn_ = txn->get_prev_lsn();
     log_manager->add_log_to_buffer(log);
     txn->set_prev_lsn(log->lsn_);
-    log_manager->flush_log_to_disk();
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
 }
