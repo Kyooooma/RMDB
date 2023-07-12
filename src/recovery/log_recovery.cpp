@@ -221,17 +221,21 @@ void RecoveryManager::rollback(bool flag) {
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<IndexInsertLogRecord>(logs[now])) {
                 //回滚index insert
-//                assert(sm_manager_->ihs_.count(log->ix_name_));
-//                auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
-//                std::cout << "回滚index insert\n" <<
-//                          ih->delete_entry(log->key_, nullptr) << '\n';
+                if(!flag){
+                    assert(sm_manager_->ihs_.count(log->ix_name_));
+                    auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
+                    std::cout << "回滚index insert\n" <<
+                              ih->delete_entry(log->key_, nullptr) << '\n';
+                }
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<IndexDeleteLogRecord>(logs[now])) {
                 //回滚index delete
-//                assert(sm_manager_->ihs_.count(log->ix_name_));
-//                auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
-//                std::cout << "回滚index delete\n" <<
-//                          ih->insert_entry(log->key_, log->rid_, nullptr).second << '\n';
+                if(!flag){
+                    assert(sm_manager_->ihs_.count(log->ix_name_));
+                    auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
+                    std::cout << "回滚index delete\n" <<
+                              ih->insert_entry(log->key_, log->rid_, nullptr).second << '\n';
+                }
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<BeginLogRecord>(logs[now])) {
                 now = log->prev_lsn_;
