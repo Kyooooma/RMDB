@@ -157,7 +157,7 @@ void RecoveryManager::rollback(bool flag){
                 try{
                     delete_index(&(log->now_value_), log->table_name_);
                     rfh->update_record(log->rid_, log->update_value_.data, nullptr);
-                    insert_index(&(log->now_value_), log->rid_, log->table_name_);
+                    insert_index(&(log->update_value_), log->rid_, log->table_name_);
                 }catch (RMDBError &e){
                     std::cout << e.what() << '\n';
                 }
@@ -214,9 +214,7 @@ void RecoveryManager::delete_index(RmRecord* rec, std::string tab_name_){
 bool RecoveryManager::insert_index(RmRecord* rec, Rid rid_, std::string tab_name_){
     // 插入索引
     auto tab_ = sm_manager_->db_.get_table(tab_name_);
-    int fail_p = -1;
-    for (int i = 0; i < tab_.indexes.size(); i++) {
-        auto &index = tab_.indexes[i];
+    for (auto & index : tab_.indexes) {
         auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
         char *key = new char[index.col_tot_len];
         int offset = 0;
@@ -224,29 +222,7 @@ bool RecoveryManager::insert_index(RmRecord* rec, Rid rid_, std::string tab_name
             memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
             offset += index.cols[j].len;
         }
-        auto result = ih->insert_entry(key, rid_, nullptr);
+        ih->insert_entry(key, rid_, nullptr);
         free(key);
-        if(!result.second){
-            fail_p = i;
-            break;
-        }
     }
-    if(fail_p != -1){
-        //说明插入失败，需要rollback
-        //删掉已插入索引
-        for(int i = 0; i < fail_p; i++){
-            auto &index = tab_.indexes[i];
-            auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-            char *key = new char[index.col_tot_len];
-            int offset = 0;
-            for (size_t j = 0; j < index.col_num; ++j) {
-                memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
-                offset += index.cols[j].len;
-            }
-            ih->delete_entry(key, nullptr);
-            free(key);
-        }
-        return false;
-    }
-    return true;
 }

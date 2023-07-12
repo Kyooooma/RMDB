@@ -51,6 +51,15 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
     //释放所有锁
+    auto ws = txn->get_write_set();
+    while(!ws->empty()){
+        auto front = ws->front();
+        ws->pop_front();
+        auto tab_name = front->GetTableName();
+        assert(sm_manager_->fhs_.count(tab_name));
+        auto rfh = sm_manager_->fhs_[tab_name].get();
+        sm_manager_->get_bpm()->flush_all_pages(rfh->GetFd());
+    }
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){
         lock_manager_->unlock(txn, i);
@@ -62,6 +71,7 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     log->prev_lsn_ = txn->get_prev_lsn();
     log_manager->add_log_to_buffer(log);
     txn->set_prev_lsn(log->lsn_);
+    log_manager->flush_log_to_disk();
     // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
 }
@@ -113,6 +123,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     // 5. 更新事务状态
     auto txn = context->txn_;
     auto write_set = txn->get_write_set();
+    std::unordered_set<int> fds;
     //从后往前遍历
     while(!write_set->empty()){
         auto last = write_set->back();
@@ -123,6 +134,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
         auto rec = last->GetRecord();
         assert(sm_manager_->fhs_.count(tab_name));
         auto rfh = sm_manager_->fhs_[tab_name].get();
+        fds.insert(rfh->GetFd());
         if(type == WType::INSERT_TUPLE){
             //插入操作, 应该删除
             std::cout << "rollback insert\n";
@@ -162,6 +174,9 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             insert_index(tab_name, &rec, rid);
         }
     }
+    for(auto i : fds){
+        sm_manager_->get_bpm()->flush_all_pages(i);
+    }
     //释放所有锁
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){
@@ -174,6 +189,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     log->prev_lsn_ = txn->get_prev_lsn();
     log_manager->add_log_to_buffer(log);
     txn->set_prev_lsn(log->lsn_);
+    log_manager->flush_log_to_disk();
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
 }
