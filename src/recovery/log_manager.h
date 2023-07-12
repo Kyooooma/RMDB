@@ -394,8 +394,6 @@ public:
 
     LogBuffer* get_log_buffer() { return &log_buffer_; }
 
-    void add() {global_lsn_++;}
-
 private:    
     std::atomic<lsn_t> global_lsn_{0};  // 全局lsn，递增，用于为每条记录分发lsn
     std::mutex latch_;                  // 用于对log_buffer_的互斥访问
