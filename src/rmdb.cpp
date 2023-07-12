@@ -106,10 +106,10 @@ void *client_handler(void *sock_fd) {
             std::cout << "Client exit." << std::endl;
             break;
         }
-        if (strcmp(data_recv, "crash") == 0) {
-            std::cout << "Server crash" << std::endl;
-            exit(1);
-        }
+//        if (strcmp(data_recv, "crash") == 0) {
+//            std::cout << "Server crash" << std::endl;
+//            exit(1);
+//        }
 
         std::cout << "Read from client " << fd << ": " << data_recv << std::endl;
 
