@@ -107,8 +107,6 @@ void *client_handler(void *sock_fd) {
             break;
         }
         if (strcmp(data_recv, "crash") == 0) {
-            log_manager->flush_log_to_disk();
-            sm_manager->close_db();
             std::cout << "Server crash" << std::endl;
             exit(1);
         }
@@ -272,6 +270,15 @@ void start_server() {
     std::cout << "Server shuts down." << std::endl;
 }
 
+void *log_timer(void * arg){
+    //定时将log刷入磁盘
+    while(!should_exit){
+        std::this_thread::sleep_for(FLUSH_TIMEOUT);
+        std::cout << "flush_log_to_disk\n";
+        log_manager->flush_log_to_disk();
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc != 2) {
         // 需要指定数据库名称
@@ -304,6 +311,11 @@ int main(int argc, char **argv) {
         recovery->analyze();
         recovery->redo();
         recovery->undo();
+
+        pthread_t thread_id;
+        if(pthread_create(&thread_id, nullptr, &log_timer, nullptr) != 0){
+            std::cout << "log_timer error!\n";
+        }
 
         // 开启服务端，开始接受客户端连接
         start_server();
