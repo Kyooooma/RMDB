@@ -51,24 +51,11 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
     //释放所有锁
-//    auto ws = txn->get_write_set();
-//    std::unordered_set<int> fds;
-//    while(!ws->empty()){
-//        auto front = ws->front();
-//        ws->pop_front();
-//        auto tab_name = front->GetTableName();
-//        assert(sm_manager_->fhs_.count(tab_name));
-//        auto rfh = sm_manager_->fhs_[tab_name].get();
-//        fds.insert(rfh->GetFd());
-//    }
     //释放事务相关资源，eg.锁集
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){
         lock_manager_->unlock(txn, i);
     }
-//    for(auto i : fds){
-//        sm_manager_->get_bpm()->flush_all_pages(i);
-//    }
     txn->clear();
     // 4. 把事务日志刷入磁盘中
     auto *log = new CommitLogRecord(txn->get_transaction_id());
@@ -142,7 +129,6 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     // 5. 更新事务状态
     auto txn = context->txn_;
     auto write_set = txn->get_write_set();
-    std::unordered_set<int> fds;
     //从后往前遍历
     while(!write_set->empty()){
         auto last = write_set->back();
@@ -153,10 +139,9 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
         auto rec = last->GetRecord();
         assert(sm_manager_->fhs_.count(tab_name));
         auto rfh = sm_manager_->fhs_[tab_name].get();
-        fds.insert(rfh->GetFd());
         if(type == WType::INSERT_TUPLE){
             //插入操作, 应该删除
-            std::cout << "rollback insert\n";
+//            std::cout << "rollback insert\n";
 
             //更新日志
             auto *logRecord = new DeleteLogRecord(context->txn_->get_transaction_id(), rec, rid,tab_name);
@@ -168,7 +153,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             rfh->delete_record(rid, context);
         }else if(type == WType::DELETE_TUPLE){
             //删除操作, 应该插入
-            std::cout << "rollback delete\n";
+//            std::cout << "rollback delete\n";
             //更新日志-插入
             auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid,tab_name);
             logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
@@ -179,7 +164,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             rfh->insert_record(rid, rec.data);
         }else if(type == WType::UPDATE_TUPLE){
             //更新操作, 应该更新
-            std::cout << "rollback update\n";
+//            std::cout << "rollback update\n";
             auto old = rfh->get_record(rid, context);
 
             //更新日志
@@ -193,9 +178,6 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             insert_index(tab_name, &rec, rid, context);
         }
     }
-//    for(auto i : fds){
-//        sm_manager_->get_bpm()->flush_all_pages(i);
-//    }
     //释放所有锁
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){

@@ -134,8 +134,10 @@ void SmManager::close_db() {
  */
 void SmManager::show_tables(Context *context) {
     std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
-    outfile << "| Tables |\n";
+    if(!context->output_ellipsis_){
+        outfile.open("output.txt", std::ios::out | std::ios::app);
+        outfile << "| Tables |\n";
+    }
     RecordPrinter printer(1);
     printer.print_separator(context);
     printer.print_record({"Tables"}, context);
@@ -143,10 +145,14 @@ void SmManager::show_tables(Context *context) {
     for (auto &entry: db_.tabs_) {
         auto &tab = entry.second;
         printer.print_record({tab.name}, context);
-        outfile << "| " << tab.name << " |\n";
+        if(!context->output_ellipsis_){
+            outfile << "| " << tab.name << " |\n";
+        }
     }
     printer.print_separator(context);
-    outfile.close();
+    if(!context->output_ellipsis_){
+        outfile.close();
+    }
 }
 
 /**
@@ -376,7 +382,9 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<ColMet
 
 void SmManager::show_index(const std::string &tab_name, Context *context) {
     std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
+    if(!context->output_ellipsis_){
+        outfile.open("output.txt", std::ios::out | std::ios::app);
+    }
     RecordPrinter printer(3);
     printer.print_separator(context);
     TabMeta &tab = db_.get_table(tab_name);
@@ -390,8 +398,12 @@ void SmManager::show_index(const std::string &tab_name, Context *context) {
         col += ")";
         std::vector<std::string> v = {tab_name, "unique", col};
         printer.print_record(v, context);
-        outfile << "| " << tab_name << " | unique | " << col << " |\n";
+        if(!context->output_ellipsis_){
+            outfile << "| " << tab_name << " | unique | " << col << " |\n";
+        }
     }
     printer.print_separator(context);
-    outfile.close();
+    if(!context->output_ellipsis_){
+        outfile.close();
+    }
 }

@@ -146,12 +146,14 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     rec_printer.print_separator(context);
     // print header into file
     std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
-    outfile << "|";
-    for(const auto & caption : captions) {
-        outfile << " " << caption << " |";
+    if(!context->output_ellipsis_){
+        outfile.open("output.txt", std::ios::out | std::ios::app);
+        outfile << "|";
+        for(const auto & caption : captions) {
+            outfile << " " << caption << " |";
+        }
+        outfile << "\n";
     }
-    outfile << "\n";
 
     // Print records
     size_t num_rec = 0;
@@ -205,18 +207,24 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             }
         }
         std::vector<std::string> columns;
-        outfile << "|";
+        if(!context->output_ellipsis_){
+            outfile << "|";
+            if (flag == 1) {
+                outfile << " " << std::to_string(ans1) << " |";
+            } else if (flag == 2) {
+                outfile << " " << std::to_string(ans2) << " |";
+            } else {
+                outfile << " " << ans3 << " |";
+            }
+            outfile << "\n";
+        }
         if (flag == 1) {
             columns.push_back(std::to_string(ans1));
-            outfile << " " << std::to_string(ans1) << " |";
         } else if (flag == 2) {
             columns.push_back(std::to_string(ans2));
-            outfile << " " << std::to_string(ans2) << " |";
         } else {
             columns.push_back(ans3);
-            outfile << " " << ans3 << " |";
         }
-        outfile << "\n";
         rec_printer.print_record(columns, context);
     }
 
@@ -245,15 +253,19 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             // print record into buffer
             rec_printer.print_record(columns, context);
             // print record into file
-            outfile << "|";
-            for (const auto &column: columns) {
-                outfile << " " << column << " |";
+            if(!context->output_ellipsis_){
+                outfile << "|";
+                for (const auto &column: columns) {
+                    outfile << " " << column << " |";
+                }
+                outfile << "\n";
             }
-            outfile << "\n";
             num_rec++;
         }
     }
-    outfile.close();
+    if(!context->output_ellipsis_){
+        outfile.close();
+    }
     // Print footer into buffer
     rec_printer.print_separator(context);
     // Print record count into buffer
