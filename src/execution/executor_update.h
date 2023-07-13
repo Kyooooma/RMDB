@@ -40,7 +40,7 @@ public:
         conds_ = std::move(conds);
         rids_ = std::move(rids);
         context_ = context;
-        for(const auto& i : tab_.cols){
+        for (const auto &i: tab_.cols) {
             len_ += i.len;
         }
     }
@@ -49,52 +49,78 @@ public:
 
     size_t tupleLen() const override { return len_; };
 
-    void delete_index(RmRecord* rec){
+    void delete_index(RmRecord *rec, Rid rid_) {
         // 删除索引
         for (auto &index: tab_.indexes) {
-            auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+            auto ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
+            auto ih = sm_manager_->ihs_.at(ix_name).get();
             char *key = new char[index.col_tot_len];
             int offset = 0;
             for (size_t j = 0; j < index.col_num; ++j) {
                 memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
                 offset += index.cols[j].len;
             }
+
+            //更新索引删除日志
+            auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name,
+                                                       index.col_tot_len);
+            index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
+            context_->log_mgr_->add_log_to_buffer(index_log);
+            context_->txn_->set_prev_lsn(index_log->lsn_);
+
             ih->delete_entry(key, context_->txn_);
             free(key);
         }
     }
 
-    bool insert_index(RmRecord* rec, Rid rid_){
+    bool insert_index(RmRecord *rec, Rid rid_) {
         // 插入索引
         int fail_p = -1;
         for (int i = 0; i < tab_.indexes.size(); i++) {
             auto &index = tab_.indexes[i];
-            auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+            auto ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
+            auto ih = sm_manager_->ihs_.at(ix_name).get();
             char *key = new char[index.col_tot_len];
             int offset = 0;
             for (size_t j = 0; j < index.col_num; ++j) {
                 memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
                 offset += index.cols[j].len;
             }
+            //更新索引插入日志
+            auto *index_log = new IndexInsertLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name,
+                                                       index.col_tot_len);
+            index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
+            context_->log_mgr_->add_log_to_buffer(index_log);
+            context_->txn_->set_prev_lsn(index_log->lsn_);
+
             auto result = ih->insert_entry(key, rid_, context_->txn_);
             free(key);
-            if(!result.second){
+            if (!result.second) {
                 fail_p = i;
                 break;
             }
         }
-        if(fail_p != -1){
+        if (fail_p != -1) {
             //说明插入失败，需要rollback
             //删掉已插入索引
-            for(int i = 0; i < fail_p; i++){
+            for (int i = 0; i < fail_p; i++) {
                 auto &index = tab_.indexes[i];
-                auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+                auto ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
+                auto ih = sm_manager_->ihs_.at(ix_name).get();
                 char *key = new char[index.col_tot_len];
                 int offset = 0;
                 for (size_t j = 0; j < index.col_num; ++j) {
                     memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
                     offset += index.cols[j].len;
                 }
+
+                //更新索引删除日志
+                auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name,
+                                                           index.col_tot_len);
+                index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
+                context_->log_mgr_->add_log_to_buffer(index_log);
+                context_->txn_->set_prev_lsn(index_log->lsn_);
+
                 ih->delete_entry(key, context_->txn_);
                 free(key);
             }
@@ -116,15 +142,15 @@ public:
             //查找记录
             auto rec = fh_->get_record(rid, context_);
             auto old_rec = fh_->get_record(rid, context_);
-            delete_index(rec.get());
+            delete_index(rec.get(), rid);
             upd_cnt++;
             for (const auto &i: set_clauses_) {
                 auto col = mp[i.lhs];
                 auto value = i.rhs;
-                if(value.type != col.type){
+                if (value.type != col.type) {
                     Value b = {.type = col.type};
                     convert(value, b);
-                    if(value.type != col.type){
+                    if (value.type != col.type) {
                         throw IncompatibleTypeError(coltype2str(col.type), coltype2str(value.type));
                     }
                 }
@@ -132,12 +158,17 @@ public:
                 //更新记录数据
                 memcpy(rec->data + col.offset, value.raw->data, col.len);
             }
-            if(!insert_index(rec.get(), rid)){
+            if (!insert_index(rec.get(), rid)) {
                 is_fail = true;
                 insert_index(old_rec.get(), rid);
                 upd_cnt--;
                 break;
             }
+            //更新日志
+            auto *logRecord = new UpdateLogRecord(context_->txn_->get_transaction_id(), *old_rec, rid, tab_name_, *rec);
+            logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
+            context_->log_mgr_->add_log_to_buffer(logRecord);
+            context_->txn_->set_prev_lsn(logRecord->lsn_);
             //更新记录
             fh_->update_record(rid, rec->data, context_);
             //更新事务
@@ -145,9 +176,9 @@ public:
             context_->txn_->append_write_record(wr);
         }
 
-        if(is_fail){
+        if (is_fail) {
             //插入失败
-            while(upd_cnt--){
+            while (upd_cnt--) {
                 auto last = context_->txn_->get_last_write_record();
                 auto type = last->GetWriteType();
                 assert(type == WType::UPDATE_TUPLE);
@@ -155,8 +186,15 @@ public:
                 auto tab_name = last->GetTableName();
                 auto rec_ = last->GetRecord();
                 auto now_rec = fh_->get_record(rid_, context_);
-                delete_index(now_rec.get());
+                delete_index(now_rec.get(), rid_);
                 insert_index(&rec_, rid_);
+                //更新日志
+                auto *logRecord = new UpdateLogRecord(context_->txn_->get_transaction_id(), *now_rec, rid_, tab_name_,
+                                                      rec_);
+                logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
+                context_->log_mgr_->add_log_to_buffer(logRecord);
+                context_->txn_->set_prev_lsn(logRecord->lsn_);
+
                 fh_->update_record(rid_, rec_.data, context_);
                 context_->txn_->delete_write_record();
             }

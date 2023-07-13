@@ -31,6 +31,10 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     }
     std::unique_lock<std::mutex> lock(latch_);
     txn_map.emplace(txn->get_transaction_id(), txn);
+    auto *log = new BeginLogRecord(txn->get_transaction_id());
+    log->prev_lsn_ = txn->get_prev_lsn();
+    log_manager->add_log_to_buffer(log);
+    txn->set_prev_lsn(log->lsn_);
     return txn;
 }
 
@@ -47,45 +51,77 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
     //释放所有锁
+//    auto ws = txn->get_write_set();
+//    std::unordered_set<int> fds;
+//    while(!ws->empty()){
+//        auto front = ws->front();
+//        ws->pop_front();
+//        auto tab_name = front->GetTableName();
+//        assert(sm_manager_->fhs_.count(tab_name));
+//        auto rfh = sm_manager_->fhs_[tab_name].get();
+//        fds.insert(rfh->GetFd());
+//    }
+    //释放事务相关资源，eg.锁集
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){
         lock_manager_->unlock(txn, i);
     }
-    //释放事务相关资源，eg.锁集
+//    for(auto i : fds){
+//        sm_manager_->get_bpm()->flush_all_pages(i);
+//    }
     txn->clear();
     // 4. 把事务日志刷入磁盘中
-    log_manager->flush_log_to_disk();
+    auto *log = new CommitLogRecord(txn->get_transaction_id());
+    log->prev_lsn_ = txn->get_prev_lsn();
+    log_manager->add_log_to_buffer(log);
+    txn->set_prev_lsn(log->lsn_);
     // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
 }
 
-void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec){
+void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec, Rid rid_, Context* context_){
     // 删除索引
     auto &tab = sm_manager_->db_.get_table(tab_name);
     for (auto &index: tab.indexes) {
-        auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name, index.cols)).get();
+        auto ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name, index.cols);
+        auto ih = sm_manager_->ihs_.at(ix_name).get();
         char *key = new char[index.col_tot_len];
         int offset = 0;
         for (size_t j = 0; j < index.col_num; ++j) {
             memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
             offset += index.cols[j].len;
         }
+
+        //更新索引删除日志
+        auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, index.col_tot_len);
+        index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
+        context_->log_mgr_->add_log_to_buffer(index_log);
+        context_->txn_->set_prev_lsn(index_log->lsn_);
+
         ih->delete_entry(key, nullptr);
         free(key);
     }
 }
 
-void TransactionManager::insert_index(const std::string& tab_name, RmRecord* rec, Rid rid_){
+void TransactionManager::insert_index(const std::string& tab_name, RmRecord* rec, Rid rid_, Context* context_){
     // 插入索引
     auto &tab = sm_manager_->db_.get_table(tab_name);
     for (auto & index : tab.indexes) {
-        auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name, index.cols)).get();
+        auto ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name, index.cols);
+        auto ih = sm_manager_->ihs_.at(ix_name).get();
         char *key = new char[index.col_tot_len];
         int offset = 0;
         for (size_t j = 0; j < index.col_num; ++j) {
             memcpy(key + offset, rec->data + index.cols[j].offset, index.cols[j].len);
             offset += index.cols[j].len;
         }
+
+        //更新索引插入日志
+        auto *index_log = new IndexInsertLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, index.col_tot_len);
+        index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
+        context_->log_mgr_->add_log_to_buffer(index_log);
+        context_->txn_->set_prev_lsn(index_log->lsn_);
+
         auto result = ih->insert_entry(key, rid_, nullptr);
         assert(result.second == true);
         free(key);
@@ -106,6 +142,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     // 5. 更新事务状态
     auto txn = context->txn_;
     auto write_set = txn->get_write_set();
+    std::unordered_set<int> fds;
     //从后往前遍历
     while(!write_set->empty()){
         auto last = write_set->back();
@@ -116,25 +153,49 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
         auto rec = last->GetRecord();
         assert(sm_manager_->fhs_.count(tab_name));
         auto rfh = sm_manager_->fhs_[tab_name].get();
+        fds.insert(rfh->GetFd());
         if(type == WType::INSERT_TUPLE){
             //插入操作, 应该删除
             std::cout << "rollback insert\n";
-            delete_index(tab_name, &rec);
+
+            //更新日志
+            auto *logRecord = new DeleteLogRecord(context->txn_->get_transaction_id(), rec, rid,tab_name);
+            logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
+            context->log_mgr_->add_log_to_buffer(logRecord);
+            context->txn_->set_prev_lsn(logRecord->lsn_);
+
+            delete_index(tab_name, &rec, rid, context);
             rfh->delete_record(rid, context);
         }else if(type == WType::DELETE_TUPLE){
             //删除操作, 应该插入
             std::cout << "rollback delete\n";
-            insert_index(tab_name, &rec, rid);
+            //更新日志-插入
+            auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid,tab_name);
+            logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
+            context->log_mgr_->add_log_to_buffer(logRecord);
+            context->txn_->set_prev_lsn(logRecord->lsn_);
+
+            insert_index(tab_name, &rec, rid, context);
             rfh->insert_record(rid, rec.data);
         }else if(type == WType::UPDATE_TUPLE){
             //更新操作, 应该更新
             std::cout << "rollback update\n";
             auto old = rfh->get_record(rid, context);
-            delete_index(tab_name, old.get());
+
+            //更新日志
+            auto *logRecord = new UpdateLogRecord(context->txn_->get_transaction_id(), *old, rid,tab_name, rec);
+            logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
+            context->log_mgr_->add_log_to_buffer(logRecord);
+            context->txn_->set_prev_lsn(logRecord->lsn_);
+
+            delete_index(tab_name, old.get(), rid, context);
             rfh->update_record(rid, rec.data, context);
-            insert_index(tab_name, &rec, rid);
+            insert_index(tab_name, &rec, rid, context);
         }
     }
+//    for(auto i : fds){
+//        sm_manager_->get_bpm()->flush_all_pages(i);
+//    }
     //释放所有锁
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){
@@ -143,7 +204,10 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     //释放事务相关资源，eg.锁集
     txn->clear();
     // 4. 把事务日志刷入磁盘中
-    log_manager->flush_log_to_disk();
+    auto *log = new AbortLogRecord(txn->get_transaction_id());
+    log->prev_lsn_ = txn->get_prev_lsn();
+    log_manager->add_log_to_buffer(log);
+    txn->set_prev_lsn(log->lsn_);
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
 }

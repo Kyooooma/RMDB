@@ -239,7 +239,7 @@ void SmManager::drop_table(const std::string &tab_name, Context *context) {
  * @param {vector<string>&} col_names 索引包含的字段名称
  * @param {Context*} context
  */
-void SmManager::create_index(const std::string &tab_name, const std::vector<std::string> &col_names, Context *context) {
+void SmManager::create_index(const std::string &tab_name, const std::vector<std::string> &col_names, Context *context_) {
     std::vector<ColMeta> cols;
     TabMeta &tab = db_.get_table(tab_name);
     int tot_len = 0;
@@ -267,17 +267,24 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
     auto ih = ihs_[ix_name].get();
     auto scan_ = std::make_unique<RmScan>(rfh);
     bool is_fail = false;
-    if(context != nullptr) context->lock_mgr_->lock_shared_on_table(context->txn_, rfh->GetFd());
+    if(context_ != nullptr) context_->lock_mgr_->lock_shared_on_table(context_->txn_, rfh->GetFd());
     while (!scan_->is_end()) {
         auto rid_ = scan_->rid();
-        auto rec = rfh->get_record(rid_, context);
+        auto rec = rfh->get_record(rid_, context_);
         char *key = new char[tot_len];
         int offset = 0;
         for (auto & col : cols) {
             memcpy(key + offset, rec->data + col.offset, col.len);
             offset += col.len;
         }
-        auto result = ih->insert_entry(key, rid_, context->txn_);
+
+        //更新索引插入日志
+        auto *index_log = new IndexInsertLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, tot_len);
+        index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
+        context_->log_mgr_->add_log_to_buffer(index_log);
+        context_->txn_->set_prev_lsn(index_log->lsn_);
+
+        auto result = ih->insert_entry(key, rid_, context_->txn_);
         if(!result.second){
             //说明不满足唯一性，插入失败，需要rollback
             is_fail = true;
@@ -286,7 +293,7 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
         scan_->next();
     }
     if(is_fail){
-        drop_index(tab_name, col_names, context);
+        drop_index(tab_name, col_names, context_);
         return;
     }
     flush_meta();
@@ -311,31 +318,6 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<std::s
     auto pos = std::find(tab.indexes.begin(), tab.indexes.end(), im);
     tab.indexes.erase(pos);
     auto ix_name = ix_manager_->get_index_name(tab_name, cols);
-    if(!ihs_.count(ix_name)){
-        //如果没有打开则打开文件
-        ihs_.emplace(ix_name, ix_manager_->open_index(tab_name, cols));
-    }
-    if(!fhs_.count(tab_name)){
-        //如果没有打开表文件则打开
-        fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
-    }
-    //将已有数据从b+树中删除
-    auto rfh = fhs_[tab_name].get();
-    auto ih = ihs_[ix_name].get();
-    auto scan_ = std::make_unique<RmScan>(rfh);
-    context->lock_mgr_->lock_shared_on_table(context->txn_, rfh->GetFd());
-    while (!scan_->is_end()) {
-        auto rid_ = scan_->rid();
-        auto rec = rfh->get_record(rid_, context);
-        char *key = new char[tot_len];
-        int offset = 0;
-        for (auto & col : cols) {
-            memcpy(key + offset, rec->data + col.offset, col.len);
-            offset += col.len;
-        }
-        ih->delete_entry(key, context->txn_);
-        scan_->next();
-    }
     if (ihs_.count(ix_name)) {// 说明被打开了
         disk_manager_->close_file(ihs_[ix_name]->get_fd());
         ihs_.erase(ix_name);

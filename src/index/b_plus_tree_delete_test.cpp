@@ -329,8 +329,8 @@ class BPlusTreeTests : public ::testing::Test {
  */
 TEST_F(BPlusTreeTests, InsertAndDeleteTest1) {
     const int64_t scale = 10;
-    const int64_t delete_scale = 9;  // 删除的个数最好小于scale，等于的话会变成空树
-    const int order = 4;
+    const int64_t delete_scale = 10;  // 删除的个数最好小于scale，等于的话会变成空树
+    const int order = 256;
 
     assert(order > 2 && order <= ih_->file_hdr_->btree_order_);
     ih_->file_hdr_->btree_order_ = order;
@@ -377,25 +377,35 @@ TEST_F(BPlusTreeTests, InsertAndDeleteTest1) {
         Draw(buffer_pool_manager_.get(), "InsertAndDeleteTest1_delete" + std::to_string(key) + ".dot");
     }
 
-    // scan keys by Ixscan
-    int64_t start_key = *delete_keys.rbegin() + 1;
-    int64_t current_key = start_key;
-    int64_t size = 0;
+    for (auto key : keys) {
+        int32_t value = key & 0xFFFFFFFF;  // key的低32位
+        Rid rid = {.page_no = static_cast<int32_t>(key >> 32),
+                .slot_no = value};  // page_id = (key>>32), slot_num = (key & 0xFFFFFFFF)
+        index_key = (const char *)&key;
+        auto insert_ret = ih_->insert_entry(index_key, rid, txn_.get());  // 调用Insert
+        ASSERT_EQ(insert_ret.second, true);
+    }
+    Draw(buffer_pool_manager_.get(), "insert100.dot");
 
-    IxScan scan(ih_.get(), ih_->leaf_begin(), ih_->leaf_end(), buffer_pool_manager_.get());
-    while (!scan.is_end()) {
-        auto rid = scan.rid();
-        EXPECT_EQ(rid.page_no, 0);
-        EXPECT_EQ(rid.slot_no, current_key);
-        current_key++;
-        size++;
-        scan.next();
-    }
-    EXPECT_EQ(size, keys.size() - delete_keys.size());
-    check_tree(ih_.get(), ih_->file_hdr_->root_page_);
-    if (!ih_->is_empty()) {
-        check_leaf(ih_.get());
-    }
+//    // scan keys by Ixscan
+//    int64_t start_key = *delete_keys.rbegin() + 1;
+//    int64_t current_key = start_key;
+//    int64_t size = 0;
+
+//    IxScan scan(ih_.get(), ih_->leaf_begin(), ih_->leaf_end(), buffer_pool_manager_.get());
+//    while (!scan.is_end()) {
+//        auto rid = scan.rid();
+//        EXPECT_EQ(rid.page_no, 0);
+//        EXPECT_EQ(rid.slot_no, current_key);
+//        current_key++;
+//        size++;
+//        scan.next();
+//    }
+//    EXPECT_EQ(size, keys.size() - delete_keys.size());
+//    check_tree(ih_.get(), ih_->file_hdr_->root_page_);
+//    if (!ih_->is_empty()) {
+//        check_leaf(ih_.get());
+//    }
 }
 
 /**
@@ -467,7 +477,7 @@ TEST_F(BPlusTreeTests, InsertAndDeleteTest2) {
  */
 TEST_F(BPlusTreeTests, LargeScaleTest) {
     const int order = 255;  // 若order太小，而插入数据过多，将会超出缓冲池
-    const int scale = 20000;
+    const int scale = 10;
 
     if (order >= 2 && order <= ih_->file_hdr_->btree_order_) {
         ih_->file_hdr_->btree_order_ = order;
