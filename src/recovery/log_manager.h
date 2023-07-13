@@ -89,7 +89,7 @@ public:
     }
     // 从src中反序列化出一条Begin日志记录
     void deserialize(const char* src) override {
-        LogRecord::deserialize(src);
+        LogRecord::deserialize(src);   
     }
     virtual void format_print() override {
         std::cout << "log type in son_function: " << LogTypeStr[log_type_] << "\n";
@@ -202,11 +202,8 @@ public:
         offset += sizeof(Rid);
         table_name_size_ = *reinterpret_cast<const size_t*>(src + offset);
         offset += sizeof(size_t);
-        table_name_ = new char[table_name_size_ + 1];
-        table_name_[table_name_size_] = '\0';
-        std::cout << table_name_ << '\n';
+        table_name_ = new char[table_name_size_];
         memcpy(table_name_, src + offset, table_name_size_);
-        std::cout << table_name_ << '\n';
     }
     void format_print() override {
         printf("insert record\n");
@@ -272,8 +269,7 @@ public:
         offset += sizeof(Rid);
         table_name_size_ = *reinterpret_cast<const size_t*>(src + offset);
         offset += sizeof(size_t);
-        table_name_ = new char[table_name_size_ + 1];
-        table_name_[table_name_size_] = '\0';
+        table_name_ = new char[table_name_size_];
         memcpy(table_name_, src + offset, table_name_size_);
     }
     void format_print() override {
@@ -341,8 +337,7 @@ public:
         offset += sizeof(Rid);
         table_name_size_ = *reinterpret_cast<const size_t*>(src + offset);
         offset += sizeof(size_t);
-        table_name_ = new char[table_name_size_ + 1];
-        table_name_[table_name_size_] = '\0';
+        table_name_ = new char[table_name_size_];
         memcpy(table_name_, src + offset, table_name_size_);
     }
     void format_print() override {
@@ -385,7 +380,7 @@ public:
     
     lsn_t add_log_to_buffer(LogRecord* log_record);
     void flush_log_to_disk();
-    void global(){ global_lsn_++; };
+
     LogBuffer* get_log_buffer() { return &log_buffer_; }
 
 private:    

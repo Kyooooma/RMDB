@@ -22,7 +22,6 @@ void RecoveryManager::analyze() {
         int offset = 0;
         while (offset < len - 1) {
             LogType log_type_ = *reinterpret_cast<const LogType *>(buffer_.buffer_ + offset);
-            log_manager_->global();
             if (log_type_ == LogType::begin) {
                 auto log = std::make_shared<BeginLogRecord>();
                 log->deserialize(buffer_.buffer_ + offset);
@@ -56,7 +55,6 @@ void RecoveryManager::analyze() {
                 log->deserialize(buffer_.buffer_ + offset);
                 offset += log->log_tot_len_;
                 logs.push_back(log);
-                std::cout << logs.back()->log_type_ << " " << logs.size() <<'\n';
                 log->format_print();
                 att[log->log_tid_] = log->lsn_;
             } else if (log_type_ == LogType::INSERT) {
@@ -90,7 +88,6 @@ void RecoveryManager::undo() {
         while (now != -1) {
             if (auto log = std::dynamic_pointer_cast<InsertLogRecord>(logs[now])) {
                 // 回滚insert
-                std::cout << log->table_name_ << '\n';
                 assert(sm_manager_->fhs_.count(log->table_name_));
                 auto rfh = sm_manager_->fhs_[log->table_name_].get();
                 std::cout << "回滚insert\n";
@@ -112,18 +109,9 @@ void RecoveryManager::undo() {
                 rfh->insert_record(log->rid_, log->delete_value_.data);
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<BeginLogRecord>(logs[now])) {
-                std::cout << "begin\n";
-                break;
-            } else if (auto log = std::dynamic_pointer_cast<CommitLogRecord>(logs[now])){
-                std::cout << log->log_type_ << '\n';
-                std::cout << "commit\n";
-                break;
-            } else if (auto log = std::dynamic_pointer_cast<AbortLogRecord>(logs[now])) {
-                std::cout << "abort\n";
                 break;
             } else {
-                std::cout << now << "huai le\n";
-                return;
+                std::cout << "undo 不太对\n";
             }
         }
     }
