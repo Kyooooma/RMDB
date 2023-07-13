@@ -84,7 +84,7 @@ void RmFileHandle::delete_record(const Rid &rid, Context *context) {
     // 注意考虑删除一条记录后页面未满的情况，需要调用release_page_handle()
     if(context != nullptr) context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
     if (rid.page_no >= file_hdr_.num_pages) {
-        throw PageNotExistError("RmFileHandle", rid.page_no);
+        throw PageNotExistError(" RmFileHandle delete_record ", rid.page_no);
     }
     RmPageHandle rph = fetch_page_handle(rid.page_no);
     Bitmap::reset(rph.bitmap, rid.slot_no);// 更新bitmap
@@ -107,7 +107,7 @@ void RmFileHandle::update_record(const Rid &rid, char *buf, Context *context) {
     // 2. 更新记录
     if(context != nullptr) context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
     if (rid.page_no >= file_hdr_.num_pages) {
-        throw PageNotExistError("RmFileHandle", rid.page_no);
+        throw PageNotExistError(" RmFileHandle update_record ", rid.page_no);
     }
     RmPageHandle rph = fetch_page_handle(rid.page_no);
     memcpy(rph.get_slot(rid.slot_no), buf, rph.file_hdr->record_size);
