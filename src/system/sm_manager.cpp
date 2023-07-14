@@ -407,3 +407,8 @@ void SmManager::show_index(const std::string &tab_name, Context *context) {
         outfile.close();
     }
 }
+
+//读取数据
+void SmManager::load_record(const std::string &file_name, const std::string& tab_name, Context *context) {
+    
+}

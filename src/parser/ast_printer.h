@@ -107,6 +107,10 @@ namespace ast {
                 std::cout << "SHOW_INDEX\n";
                 print_val(x->tab_name, offset);
                 // print_val(x->col_name, offset);
+            } else if (auto x = std::dynamic_pointer_cast<LoadRecord>(node)) {
+                std::cout << "LOAD RECORD\n";
+                print_val(x->file_name, offset);
+                print_val(x->tab_name, offset);
             } else if (auto x = std::dynamic_pointer_cast<ColDef>(node)) {
                 std::cout << "COL_DEF\n";
                 print_val(x->col_name, offset);

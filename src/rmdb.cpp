@@ -110,6 +110,7 @@ void *client_handler(void *sock_fd) {
             std::cout << "Client exit." << std::endl;
             break;
         }
+
 //        if (strcmp(data_recv, "crash") == 0) {
 //            std::cout << "Server crash" << std::endl;
 //            exit(1);
@@ -128,139 +129,12 @@ void *client_handler(void *sock_fd) {
             continue;
         }
 
-        if (memcmp(data_recv, "load", 4) == 0) {
-            char *file_name = new char[20];
-            char *tab_name = new char[20];
-            sscanf(data_recv, "load %s into %s;", file_name, tab_name);
-            std::string path = "../../../src/test/performance_test/table_data/", tab = tab_name, input;
-            path += file_name;
-            tab.pop_back();
-            std::fstream ifs;
-            ifs.open(path.c_str(), std::ios::in);
-            std::vector<std::string> inserts;
-            getline(ifs, input);
-            while (getline(ifs, input)) {
-                std::string insert = "insert into ";
-                insert += tab;
-                insert += " values(";
-
-                std::string values, value;
-
-                std::istringstream sin;
-
-                sin.str(input);
-                auto &tab_info = sm_manager->db_.get_table(tab);
-                int cnt = 0;
-                while (std::getline(sin, value, ',')){ //将字符串流sin中的字符读到field字符串中，以逗号为分隔符
-                    if(cnt) values += ',';
-                    switch (tab_info.cols[cnt].type) {
-                        case ColType::TYPE_INT: case TYPE_FLOAT: case TYPE_BIGINT:{
-                            values += value;
-                            break;
-                        }
-                        case TYPE_STRING: case TYPE_DATETIME:{
-                            values += '\'';
-                            values += value;
-                            values += '\'';
-                            break;
-                        }
-                    }
-                    cnt++;
-                }
-                insert += values;
-                insert += ");";
-//                std::cout << insert << '\n';
-                inserts.push_back(insert);
-            }
-            ifs.close();
-            for(const auto& insert : inserts){
-                offset = 0;
-                // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
-                Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset,
-                                               output_ellipsis);
-
-                //事务处理部分
-                SetTransaction(&txn_id, context);
-
-                // 用于判断是否已经调用了yy_delete_buffer来删除buf
-                bool finish_analyze = false;
-                pthread_mutex_lock(buffer_mutex);
-                YY_BUFFER_STATE buf = yy_scan_string(insert.c_str());
-                try {
-                    if (yyparse() == 0) {
-                        if (ast::parse_tree != nullptr) {
-                            // analyze and rewrite
-                            std::shared_ptr<Query> query = analyze->do_analyze(ast::parse_tree);
-                            yy_delete_buffer(buf);
-                            finish_analyze = true;
-                            pthread_mutex_unlock(buffer_mutex);
-                            // 优化器
-                            std::shared_ptr<Plan> plan = optimizer->plan_query(query, context);
-                            // portal
-                            std::shared_ptr<PortalStmt> portalStmt = portal->start(plan, context);
-                            portal->run(portalStmt, ql_manager.get(), &txn_id, context);
-                            portal->drop();
-                        }
-                    }
-                } catch (TransactionAbortException &e) {
-                    // 事务需要回滚，需要把abort信息返回给客户端并写入output.txt文件中
-                    std::string str = "abort\n";
-                    memcpy(data_send, str.c_str(), str.length());
-                    data_send[str.length()] = '\0';
-                    offset = str.length();
-                    assert(e.get_transaction_id() == context->txn_->get_transaction_id());
-                    // 回滚事务
-                    txn_manager->abort(context, log_manager.get());
-                    std::cout << e.GetInfo() << std::endl;
-
-                    if(!context->output_ellipsis_){
-                        std::fstream outfile;
-                        outfile.open("output.txt", std::ios::out | std::ios::app);
-                        outfile << str;
-                        outfile.close();
-                    }
-                } catch (RMDBError &e) {
-                    // 遇到异常，需要打印failure到output.txt文件中，并发异常信息返回给客户端
-                    std::cerr << e.what() << std::endl;
-
-                    memcpy(data_send, e.what(), e.get_msg_len());
-                    data_send[e.get_msg_len()] = '\n';
-                    data_send[e.get_msg_len() + 1] = '\0';
-                    offset = e.get_msg_len() + 1;
-
-                    if(!context->output_ellipsis_){
-                        // 将报错信息写入output.txt
-                        std::fstream outfile;
-                        outfile.open("output.txt", std::ios::out | std::ios::app);
-                        outfile << "failure\n";
-                        outfile.close();
-                    }
-                }
-                if (!finish_analyze) {
-                    yy_delete_buffer(buf);
-                    pthread_mutex_unlock(buffer_mutex);
-                }
-                // 如果是单挑语句，需要按照一个完整的事务来执行，所以执行完当前语句后，自动提交事务
-
-                //事务处理部分
-                if (!context->txn_->get_txn_mode()) {
-                    txn_manager->commit(context->txn_, context->log_mgr_);
-                }
-            }
-            memset(data_send, '\0', BUFFER_LENGTH);
-            // future TODO: 格式化 sql_handler.result, 传给客户端
-            // send result with fixed format, use protobuf in the future
-            if (write(fd, data_send, 1) == -1) {
-                break;
-            }
-            continue;
-        }
-
         memset(data_send, '\0', BUFFER_LENGTH);
         offset = 0;
 
         // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
-        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset, output_ellipsis);
+        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset,
+                                       output_ellipsis);
 
         //事务处理部分
         SetTransaction(&txn_id, context);
@@ -297,7 +171,7 @@ void *client_handler(void *sock_fd) {
             txn_manager->abort(context, log_manager.get());
             std::cout << e.GetInfo() << std::endl;
 
-            if(!context->output_ellipsis_){
+            if (!context->output_ellipsis_) {
                 std::fstream outfile;
                 outfile.open("output.txt", std::ios::out | std::ios::app);
                 outfile << str;
@@ -312,7 +186,7 @@ void *client_handler(void *sock_fd) {
             data_send[e.get_msg_len() + 1] = '\0';
             offset = e.get_msg_len() + 1;
 
-            if(!context->output_ellipsis_){
+            if (!context->output_ellipsis_) {
                 // 将报错信息写入output.txt
                 std::fstream outfile;
                 outfile.open("output.txt", std::ios::out | std::ios::app);

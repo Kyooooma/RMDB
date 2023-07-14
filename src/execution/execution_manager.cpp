@@ -77,6 +77,8 @@ void QlManager::run_mutli_query(std::shared_ptr<Plan> plan, Context *context){
                 throw InternalError("Unexpected field type");
                 break;  
         }
+    }else if(auto x = std::dynamic_pointer_cast<LOADPlan>(plan)){
+        sm_manager_->load_record(x->file_name_, x->tab_name_, context);
     }
 }
 
