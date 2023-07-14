@@ -27,7 +27,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP 
 %token LEQ NEQ GEQ T_EOF
 
 // type-specific tokens
-%token <sv_str> IDENTIFIER VALUE_STRING FILE_NAME
+%token <sv_str> IDENTIFIER VALUE_STRING
 %token <sv_int> VALUE_INT
 %token <sv_float> VALUE_FLOAT
 %token <sv_bigint> VALUE_BIGINT
@@ -42,7 +42,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP 
 %type <sv_expr> expr
 %type <sv_val> value
 %type <sv_vals> valueList
-%type <sv_str> tbName colName
+%type <sv_str> tbName colName fileName suffix
 %type <sv_strs> tableList colNameList
 %type <sv_col> col
 %type <sv_cols> colList selector
@@ -136,9 +136,9 @@ ddl:
     {
         $$ = std::make_shared<ShowIndex>($4);
     }
-    |   LOAD FILE_NAME INTO tbName
+    |   LOAD fileName '.' suffix INTO tbName
     {
-        $$ = std::make_shared<LoadRecord>($2, $4);
+        $$ = std::make_shared<LoadRecord>($2, $4, $6);
     }
     ;
 
@@ -504,4 +504,8 @@ opt_asc_desc:
 tbName: IDENTIFIER;
 
 colName: IDENTIFIER;
+
+fileName: IDENTIFIER;
+
+suffix: IDENTIFIER;
 %%

@@ -112,8 +112,12 @@ namespace ast {
     struct LoadRecord : public TreeNode {
         std::string file_name, tab_name;
 
-        LoadRecord(std::string file_name_, std::string tab_name_) : file_name(std::move(file_name_)),
-                                                                    tab_name(std::move(tab_name_)) {}
+        LoadRecord(std::string file_name_, const std::string& suffix, std::string tab_name_){
+            file_name = std::move(file_name_);
+            file_name += '.';
+            file_name += suffix;
+            tab_name = std::move(tab_name_);
+        }
     };
 
     struct DropIndex : public TreeNode {
