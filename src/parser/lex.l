@@ -41,6 +41,7 @@ value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
 value_datetime '{digit}{4}-{digit}{2}-{digit}{2}{white_space}{digit}{2}:{digit}{2}:{digit}{2}'
 value_string '[^']*'
+file_name (_|{alpha}|{digit})+\.?{alpha}+
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 
 %x STATE_COMMENT
@@ -107,6 +108,10 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
     return IDENTIFIER;
 }
     /* literals */
+{file_name} {
+   yylval->sv_str = yytext;
+   return FILE_NAME;
+}
 {value_int} {
     yylval->sv_bigint = atoll(yytext);
     int n = strlen(yytext);

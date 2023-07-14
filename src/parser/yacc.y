@@ -27,7 +27,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP 
 %token LEQ NEQ GEQ T_EOF
 
 // type-specific tokens
-%token <sv_str> IDENTIFIER VALUE_STRING
+%token <sv_str> IDENTIFIER VALUE_STRING FILE_NAME
 %token <sv_int> VALUE_INT
 %token <sv_float> VALUE_FLOAT
 %token <sv_bigint> VALUE_BIGINT
@@ -136,7 +136,7 @@ ddl:
     {
         $$ = std::make_shared<ShowIndex>($4);
     }
-    |   LOAD tbName INTO tbName
+    |   LOAD FILE_NAME INTO tbName
     {
         $$ = std::make_shared<LoadRecord>($2, $4);
     }
