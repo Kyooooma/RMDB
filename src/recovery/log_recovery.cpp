@@ -22,12 +22,12 @@ void RecoveryManager::analyze() {
         int offset = 0;
         while (offset < len) {
             if (offset + OFFSET_LOG_TOT_LEN > len) {
-                std::cout << offset << " " << OFFSET_LOG_TOT_LEN << " " << len << "\n";
+//                std::cout << offset << " " << OFFSET_LOG_TOT_LEN << " " << len << "\n";
                 break;
             }
             auto log_tot_len_ = *reinterpret_cast<const uint32_t *>(buffer_.buffer_ + offset + OFFSET_LOG_TOT_LEN);
             if (offset + log_tot_len_ > len) {
-                std::cout << offset << " " << log_tot_len_ << " " << len << "\n";
+//                std::cout << offset << " " << log_tot_len_ << " " << len << "\n";
                 break;
             }
             LogType log_type_ = *reinterpret_cast<const LogType *>(buffer_.buffer_ + offset);

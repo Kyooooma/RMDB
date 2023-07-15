@@ -169,7 +169,7 @@ void *client_handler(void *sock_fd) {
             assert(e.get_transaction_id() == context->txn_->get_transaction_id());
             // 回滚事务
             txn_manager->abort(context, log_manager.get());
-            std::cout << e.GetInfo() << std::endl;
+//            std::cout << e.GetInfo() << std::endl;
 
             if (!context->output_ellipsis_) {
                 std::fstream outfile;
