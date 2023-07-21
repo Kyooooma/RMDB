@@ -411,7 +411,7 @@ void SmManager::show_index(const std::string &tab_name, Context *context) {
 
 //读取数据
 void SmManager::load_record(const std::string &file_name, const std::string &tab_name, Context *context) {
-    std::string path = "../../src/test/performance_test/table_data/", input;
+    std::string path, input;
     path += file_name;// 路径
     std::fstream ifs;// 文件读取流
     ifs.open(path.c_str(), std::ios::in);

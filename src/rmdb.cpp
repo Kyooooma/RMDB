@@ -139,6 +139,27 @@ void *client_handler(void *sock_fd) {
         //事务处理部分
         SetTransaction(&txn_id, context);
 
+        if (memcmp(data_recv, "load", 4) == 0) {
+            memset(data_send, '\0', BUFFER_LENGTH);
+            std::string file_name, tab_name, s = data_recv;
+            for(int i = 0; i < s.size(); i++){
+                if(s[i] == ' '){
+                    int j = i + 1;
+                    while(j < s.size() && s[j] != ' '){
+                        file_name += s[j++];
+                    }
+                    tab_name = s.substr(j + 6);
+                    break;
+                }
+            }
+            tab_name.pop_back();
+            sm_manager->load_record(file_name, tab_name, context);
+            if (write(fd, data_send, 1) == -1) {
+                break;
+            }
+            continue;
+        }
+
         // 用于判断是否已经调用了yy_delete_buffer来删除buf
         bool finish_analyze = false;
         pthread_mutex_lock(buffer_mutex);
