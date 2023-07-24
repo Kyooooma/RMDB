@@ -413,18 +413,28 @@ void SmManager::show_index(const std::string &tab_name, Context *context) {
 void SmManager::load_record(const std::string &file_name, const std::string &tab_name, Context *context) {
     std::string path, input;
     path += file_name;// 路径
-    std::fstream ifs;// 文件读取流
+    std::ifstream ifs;// 文件读取流
     ifs.open(path.c_str(), std::ios::in);
     assert(fhs_.count(tab_name));
     auto rfh = fhs_[tab_name].get();
     auto &tab_info = db_.get_table(tab_name);
     getline(ifs, input);// 读入表头
-    while (getline(ifs, input)) {
+    const std::streamsize buffer_size = 1024 * 1024 * 8; //8M
+    char* buffer = new char[buffer_size];
+    ifs.rdbuf()->pubsetbuf(buffer, buffer_size);
+    std::string remaining_data;
+    std::string line;
+    while (ifs.getline(buffer, buffer_size)) {
         RmRecord rec(rfh->get_file_hdr().record_size);// 数据
+        //补上上一次剩下的
+        std::string current_data(buffer);
+        line = remaining_data + current_data;
+
         std::string values, value;
         std::istringstream sin;
-        sin.str(input);
+        sin.str(line);
         int cnt = 0;
+        int sz = 0;
         while (std::getline(sin, value, ',')) { //将字符串流sin中的字符读到field字符串中，以逗号为分隔符
             Value x;// 构造数据
             auto &col = tab_info.cols[cnt];
@@ -459,7 +469,15 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
             x.init_raw(col.len);
             cnt++;
             memcpy(rec.data + col.offset, x.raw->data, col.len);
+            sz += col.len;
         }
+
+        //是否是完整的一行
+        if (sz != rec.size) {
+            remaining_data = line;
+            continue;
+        }
+        remaining_data.clear();
         //实际插入
         auto rid_ = rfh->insert_record(rec.data, context);
         //更新日志-插入
