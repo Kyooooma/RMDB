@@ -45,7 +45,7 @@ public:
         isend = false;
         fed_conds_ = std::move(conds);
         left_v.clear();
-        size = 10;
+        size = 50;
     }
 
     std::string getType() override { return "NestedLoopJoinExecutor"; };
