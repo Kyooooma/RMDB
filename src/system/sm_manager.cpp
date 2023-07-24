@@ -419,7 +419,7 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
     auto rfh = fhs_[tab_name].get();
     auto &tab_info = db_.get_table(tab_name);
     getline(ifs, input);// 读入表头
-    const std::streamsize buffer_size = 1024 * 1024; //8M
+    const std::streamsize buffer_size = 1024 * 1024 * 8; //8M
     char* buffer = new char[buffer_size];
     ifs.rdbuf()->pubsetbuf(buffer, buffer_size);
     std::string remaining_data;
