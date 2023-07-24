@@ -288,7 +288,7 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
         //更新索引插入日志
         auto *index_log = new IndexInsertLogRecord(context->txn_->get_transaction_id(), key, rid_, ix_name, tot_len);
         index_log->prev_lsn_ = context->txn_->get_prev_lsn();
-        context->log_mgr_->add_log_to_buffer(index_log);
+        context->log_mgr_->add_log_to_buffer_load(index_log);
         context->txn_->set_prev_lsn(index_log->lsn_);
 
         auto result = ih->insert_entry(key, rid_, context->txn_);
@@ -468,7 +468,7 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
         //更新日志-插入
         auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid_, tab_name);
         logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
-        context->log_mgr_->add_log_to_buffer(logRecord);
+        context->log_mgr_->add_log_to_buffer_load(logRecord);
         context->txn_->set_prev_lsn(logRecord->lsn_);
         // 更新索引
         for (auto & index : tab_info.indexes) {
@@ -485,7 +485,7 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
             auto *index_log = new IndexInsertLogRecord(context->txn_->get_transaction_id(), key, rid_, ix_name,
                                                        index.col_tot_len);
             index_log->prev_lsn_ = context->txn_->get_prev_lsn();
-            context->log_mgr_->add_log_to_buffer(index_log);
+            context->log_mgr_->add_log_to_buffer_load(index_log);
             context->txn_->set_prev_lsn(index_log->lsn_);
 
             ih->insert_entry(key, rid_, context->txn_);
