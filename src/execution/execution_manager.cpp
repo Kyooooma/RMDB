@@ -21,63 +21,58 @@ See the Mulan PSL v2 for more details. */
 #include "record_printer.h"
 
 const char *help_info = "Supported SQL syntax:\n"
-                   "  command ;\n"
-                   "command:\n"
-                   "  CREATE TABLE table_name (column_name type [, column_name type ...])\n"
-                   "  DROP TABLE table_name\n"
-                   "  CREATE INDEX table_name (column_name)\n"
-                   "  DROP INDEX table_name (column_name)\n"
-                   "  INSERT INTO table_name VALUES (value [, value ...])\n"
-                   "  DELETE FROM table_name [WHERE where_clause]\n"
-                   "  UPDATE table_name SET column_name = value [, column_name = value ...] [WHERE where_clause]\n"
-                   "  SELECT selector FROM table_name [WHERE where_clause]\n"
-                   "type:\n"
-                   "  {INT | FLOAT | CHAR(n) | BIGINT | DATETIME}\n"
-                   "where_clause:\n"
-                   "  condition [AND condition ...]\n"
-                   "condition:\n"
-                   "  column op {column | value}\n"
-                   "column:\n"
-                   "  [table_name.]column_name\n"
-                   "op:\n"
-                   "  {= | <> | < | > | <= | >=}\n"
-                   "selector:\n"
-                   "  {* | column [, column ...]}\n";
+                        "  command ;\n"
+                        "command:\n"
+                        "  CREATE TABLE table_name (column_name type [, column_name type ...])\n"
+                        "  DROP TABLE table_name\n"
+                        "  CREATE INDEX table_name (column_name)\n"
+                        "  DROP INDEX table_name (column_name)\n"
+                        "  INSERT INTO table_name VALUES (value [, value ...])\n"
+                        "  DELETE FROM table_name [WHERE where_clause]\n"
+                        "  UPDATE table_name SET column_name = value [, column_name = value ...] [WHERE where_clause]\n"
+                        "  SELECT selector FROM table_name [WHERE where_clause]\n"
+                        "type:\n"
+                        "  {INT | FLOAT | CHAR(n) | BIGINT | DATETIME}\n"
+                        "where_clause:\n"
+                        "  condition [AND condition ...]\n"
+                        "condition:\n"
+                        "  column op {column | value}\n"
+                        "column:\n"
+                        "  [table_name.]column_name\n"
+                        "op:\n"
+                        "  {= | <> | < | > | <= | >=}\n"
+                        "selector:\n"
+                        "  {* | column [, column ...]}\n";
 
 // 主要负责执行DDL语句
-void QlManager::run_mutli_query(std::shared_ptr<Plan> plan, Context *context){
+void QlManager::run_mutli_query(std::shared_ptr<Plan> plan, Context *context) {
     if (auto x = std::dynamic_pointer_cast<DDLPlan>(plan)) {
-        switch(x->tag) {
-            case T_CreateTable:
-            {
+        switch (x->tag) {
+            case T_CreateTable: {
                 sm_manager_->create_table(x->tab_name_, x->cols_, context);
                 break;
             }
-            case T_DropTable:
-            {
+            case T_DropTable: {
                 sm_manager_->drop_table(x->tab_name_, context);
                 break;
             }
-            case T_ShowIndex:
-            {
+            case T_ShowIndex: {
                 sm_manager_->show_index(x->tab_name_, context);
                 break;
             }
-            case T_CreateIndex:
-            {
+            case T_CreateIndex: {
                 sm_manager_->create_index(x->tab_name_, x->tab_col_names_, context);
                 break;
             }
-            case T_DropIndex:
-            {
+            case T_DropIndex: {
                 sm_manager_->drop_index(x->tab_name_, x->tab_col_names_, context);
                 break;
             }
             default:
                 throw InternalError("Unexpected field type");
-                break;  
+                break;
         }
-    }else if(auto x = std::dynamic_pointer_cast<LOADPlan>(plan)){
+    } else if (auto x = std::dynamic_pointer_cast<LOADPlan>(plan)) {
         sm_manager_->load_record(x->file_name_, x->tab_name_, context);
     }
 }
@@ -85,58 +80,51 @@ void QlManager::run_mutli_query(std::shared_ptr<Plan> plan, Context *context){
 // 执行help; show tables; desc table; begin; commit; abort;语句
 void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Context *context) {
     if (auto x = std::dynamic_pointer_cast<OtherPlan>(plan)) {
-        switch(x->tag) {
-            case T_Help:
-            {
+        switch (x->tag) {
+            case T_Help: {
                 memcpy(context->data_send_ + *(context->offset_), help_info, strlen(help_info));
                 *(context->offset_) = strlen(help_info);
                 break;
             }
-            case T_ShowTable:
-            {
+            case T_ShowTable: {
                 sm_manager_->show_tables(context);
                 break;
             }
-            case T_DescTable:
-            {
+            case T_DescTable: {
                 sm_manager_->desc_table(x->tab_name_, context);
                 break;
             }
-            case T_Transaction_begin:
-            {
+            case T_Transaction_begin: {
                 // 显示开启一个事务
                 context->txn_->set_txn_mode(true);
                 break;
-            }  
-            case T_Transaction_commit:
-            {
+            }
+            case T_Transaction_commit: {
                 txn_mgr_->commit(context->txn_, context->log_mgr_);
                 break;
-            }    
-            case T_Transaction_rollback:
-            {
+            }
+            case T_Transaction_rollback: {
                 txn_mgr_->abort(context, context->log_mgr_);
                 break;
-            }    
-            case T_Transaction_abort:
-            {
+            }
+            case T_Transaction_abort: {
                 txn_mgr_->abort(context, context->log_mgr_);
                 break;
-            }     
+            }
             default:
                 throw InternalError("Unexpected field type");
-                break;                        
+                break;
         }
 
     }
 }
 
 // 执行select语句，select语句的输出除了需要返回客户端外，还需要写入output.txt文件中
-void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, std::vector<TabCol> sel_cols, 
+void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, std::vector<TabCol> sel_cols,
                             Context *context) {
     std::vector<std::string> captions;
     captions.reserve(sel_cols.size());
-    for (auto &sel_col : sel_cols) {
+    for (auto &sel_col: sel_cols) {
         if (!sel_col.as_name.empty()) captions.push_back(sel_col.as_name);
         else captions.push_back(sel_col.col_name);
     }
@@ -148,10 +136,10 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     rec_printer.print_separator(context);
     // print header into file
     std::fstream outfile;
-    if(!context->output_ellipsis_){
+    if (!context->output_ellipsis_) {
         outfile.open("output.txt", std::ios::out | std::ios::app);
         outfile << "|";
-        for(const auto & caption : captions) {
+        for (const auto &caption: captions) {
             outfile << " " << caption << " |";
         }
         outfile << "\n";
@@ -173,43 +161,43 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
         for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
             auto Tuple = executorTreeRoot->Next();
             std::vector<std::string> columns;
-            for (auto &col : executorTreeRoot->cols()) {
+            for (auto &col: executorTreeRoot->cols()) {
                 char *rec_buf = Tuple->data + col.offset;
                 if (type == "count") ans1++, flag = 1;
                 if (col.type == TYPE_INT) {
-                    if (type == "sum") ans1 += *(int *)rec_buf, flag = 1;
+                    if (type == "sum") ans1 += *(int *) rec_buf, flag = 1;
                     if (type == "max") {
-                        if (flag == 0) ans1 = *(int *)rec_buf, flag = 1;
-                        else ans1 = std::max(ans1, *(int *)rec_buf);
+                        if (flag == 0) ans1 = *(int *) rec_buf, flag = 1;
+                        else ans1 = std::max(ans1, *(int *) rec_buf);
                     }
                     if (type == "min") {
-                        if (flag == 0) ans1 = *(int *)rec_buf, flag = 1;
-                        else ans1 = std::min(ans1, *(int *)rec_buf);
+                        if (flag == 0) ans1 = *(int *) rec_buf, flag = 1;
+                        else ans1 = std::min(ans1, *(int *) rec_buf);
                     }
                 } else if (col.type == TYPE_FLOAT) {
-                    if (type == "sum") ans2 += *(double *)rec_buf, flag = 2;
+                    if (type == "sum") ans2 += *(double *) rec_buf, flag = 2;
                     if (type == "max") {
-                        if (flag == 0) ans2 = *(double *)rec_buf, flag = 2;
-                        else ans2 = std::max(ans2, *(double *)rec_buf);
+                        if (flag == 0) ans2 = *(double *) rec_buf, flag = 2;
+                        else ans2 = std::max(ans2, *(double *) rec_buf);
                     }
                     if (type == "min") {
-                        if (flag == 0) ans2 = *(double *)rec_buf, flag = 2;
-                        else ans2 = std::min(ans2, *(double *)rec_buf);
+                        if (flag == 0) ans2 = *(double *) rec_buf, flag = 2;
+                        else ans2 = std::min(ans2, *(double *) rec_buf);
                     }
                 } else if (col.type == TYPE_STRING) {
                     if (type == "max") {
-                        if (flag == 0) ans3 = std::string((char *)rec_buf, col.len), flag = 3;
-                        else ans3 = std::max(ans3, std::string((char *)rec_buf, col.len));
+                        if (flag == 0) ans3 = std::string((char *) rec_buf, col.len), flag = 3;
+                        else ans3 = std::max(ans3, std::string((char *) rec_buf, col.len));
                     }
                     if (type == "min") {
-                        if (flag == 0) ans3 = std::string((char *)rec_buf, col.len), flag = 3;
-                        else ans3 = std::min(ans3, std::string((char *)rec_buf, col.len));
+                        if (flag == 0) ans3 = std::string((char *) rec_buf, col.len), flag = 3;
+                        else ans3 = std::min(ans3, std::string((char *) rec_buf, col.len));
                     }
                 }
             }
         }
         std::vector<std::string> columns;
-        if(!context->output_ellipsis_){
+        if (!context->output_ellipsis_) {
             outfile << "|";
             if (flag == 1) {
                 outfile << " " << std::to_string(ans1) << " |";
@@ -230,7 +218,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
         rec_printer.print_record(columns, context);
     }
 
-    // 正常select
+        // 正常select
     else {
         for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
             auto Tuple = executorTreeRoot->Next();
@@ -255,7 +243,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             // print record into buffer
             rec_printer.print_record(columns, context);
             // print record into file
-            if(!context->output_ellipsis_){
+            if (!context->output_ellipsis_) {
                 outfile << "|";
                 for (const auto &column: columns) {
                     outfile << " " << column << " |";
@@ -265,7 +253,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             num_rec++;
         }
     }
-    if(!context->output_ellipsis_){
+    if (!context->output_ellipsis_) {
         outfile.close();
     }
     // Print footer into buffer
@@ -275,6 +263,6 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
 }
 
 // 执行DML语句
-void QlManager::run_dml(std::unique_ptr<AbstractExecutor> exec){
+void QlManager::run_dml(std::unique_ptr<AbstractExecutor> exec) {
     exec->Next();
 }

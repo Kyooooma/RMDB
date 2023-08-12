@@ -24,8 +24,12 @@ namespace ast {
         SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BIGINT, SV_TYPE_DATETIME
     };
 
-    enum SvCompOp {
+    enum SvCompOp {// =, !=, <, >, <=, >=
         SV_OP_EQ, SV_OP_NE, SV_OP_LT, SV_OP_GT, SV_OP_LE, SV_OP_GE
+    };
+
+    enum SvSetOp {// +, -, set
+        SV_OP_ADD, SV_OP_SUB, SV_OP_SET
     };
 
     enum OrderByDir {
@@ -210,9 +214,10 @@ namespace ast {
     struct SetClause : public TreeNode {
         std::string col_name;
         std::shared_ptr<Value> val;
+        SvSetOp setOp;
 
-        SetClause(std::string col_name_, std::shared_ptr<Value> val_) :
-                col_name(std::move(col_name_)), val(std::move(val_)) {}
+        SetClause(std::string col_name_, std::shared_ptr<Value> val_, SvSetOp op_ = SV_OP_SET) :
+                col_name(std::move(col_name_)), val(std::move(val_)), setOp(op_){}
     };
 
     struct BinaryExpr : public TreeNode {

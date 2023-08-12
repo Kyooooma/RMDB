@@ -16,8 +16,11 @@ See the Mulan PSL v2 for more details. */
 
 int main() {
     std::vector<std::string> sqls = {
-        "LOAD t____1.csv INTO t2;",
-        "select t.id,t_name,d_name from t join d where t.id = d.id;",
+        "update t1 set a = a - 10;",
+        "update t1 set a = a + 10;",
+        "update t1 set a =a-100;",
+        "update t1 set a =a+1000;",
+//        "select t.id,t_name,d_name from t join d where t.id = d.id;",
 //        "desc tb;",
 //        "create table tb (a int, b float, c char(4));",
 //        "drop table tb;",
@@ -50,8 +53,7 @@ int main() {
         std::cout << sql << std::endl;
         try{
             YY_BUFFER_STATE buf = yy_scan_string(sql.c_str());
-            yyparse();
-//            assert(yyparse() == 0);
+            assert(yyparse() == 0);
             if (ast::parse_tree != nullptr) {
                 ast::TreePrinter::print(ast::parse_tree);
                 yy_delete_buffer(buf);
