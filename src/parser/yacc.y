@@ -425,15 +425,7 @@ setClauses:
     ;
 
 setClause:
-        colName '=' colName '+' value
-    {
-        $$ = std::make_shared<SetClause>($1, $5, SV_OP_ADD);
-    }
-    |    colName '=' colName '-' value
-    {
-        $$ = std::make_shared<SetClause>($1, $5, SV_OP_SUB);
-    }
-    |    colName '=' colName value
+	 colName '=' colName value
     {
         $$ = std::make_shared<SetClause>($1, $4, SV_OP_ADD);
     }
