@@ -28,6 +28,7 @@ lsn_t LogManager::add_log_to_buffer(LogRecord* log_record) {
     log_record->lsn_ = global_lsn_++;
     log_record->serialize(dest);
     memcpy(log_buffer_.buffer_ + log_buffer_.offset_, dest, log_record->log_tot_len_);
+    delete[] dest;
     log_buffer_.offset_ += log_record->log_tot_len_;
     lock.unlock();
     flush_log_to_disk();
