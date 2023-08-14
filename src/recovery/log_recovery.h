@@ -35,7 +35,7 @@ public:
     void undo();
 private:
     std::map<txn_id_t, lsn_t> att;
-    std::deque<std::shared_ptr<LogRecord>> logs;
+    std::vector<std::shared_ptr<LogRecord>> logs;
     LogBuffer buffer_;                                              // 读入日志
     DiskManager* disk_manager_;                                     // 用来读写文件
     BufferPoolManager* buffer_pool_manager_;                        // 对页面进行读写
