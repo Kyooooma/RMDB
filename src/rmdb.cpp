@@ -232,7 +232,7 @@ void *client_handler(void *sock_fd) {
         if (!context->txn_->get_txn_mode()) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
-
+        delete context;
     }
 
     // Clear
