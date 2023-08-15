@@ -500,7 +500,7 @@ bool IxIndexHandle::coalesce_or_redistribute(IxNodeHandle *node, Transaction *tr
             }
             release_node_handle(*node);
             buffer_pool_manager_->unpin_page(node->get_page_id(), true);
-            free(node);
+            delete node;
             return true;
         }
         buffer_pool_manager_->unpin_page(node->get_page_id(), true);
@@ -650,7 +650,7 @@ bool IxIndexHandle::coalesce(IxNodeHandle **neighbor_node, IxNodeHandle **node, 
     buffer_pool_manager_->unpin_page(rt->get_page_id(), true);
     if(rt->is_leaf_page()) erase_leaf(rt);
     release_node_handle(*rt);
-    free(rt);
+    delete rt;
     return (*parent)->get_size() < (*parent)->get_min_size();
 }
 

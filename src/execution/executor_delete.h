@@ -60,7 +60,7 @@ public:
             delete index_log;
             //删除索引
             ih->delete_entry(key, context_->txn_);
-            free(key);
+            delete[] key;
         }
     }
 

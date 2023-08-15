@@ -122,7 +122,7 @@ public:
                 context_->txn_->set_prev_lsn(index_log->lsn_);
                 delete index_log;
                 ih->delete_entry(key, context_->txn_);
-                free(key);
+               delete[] key;
             }
             return false;
         }

@@ -114,7 +114,7 @@ public:
                 context_->txn_->set_prev_lsn(index_log->lsn_);
                 delete index_log;
                 ih->delete_entry(key, context_->txn_);
-                free(key);
+                delete[] key;
             }
             //更新日志
             auto *logRecord_ = new DeleteLogRecord(context_->txn_->get_transaction_id(), rec, rid_,tab_name_);
