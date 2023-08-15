@@ -419,6 +419,9 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
     assert(fhs_.count(tab_name));
     auto rfh = fhs_[tab_name].get();
     auto &tab_info = db_.get_table(tab_name);
+    const std::streamsize buffer_size = 1024 * 1024;
+    char* buffer = new char[buffer_size];
+    ifs.rdbuf()->pubsetbuf(buffer,buffer_size);
     getline(ifs, input);// 读入表头
     while (getline(ifs, input)) {
         RmRecord rec(rfh->get_file_hdr().record_size);// 数据
@@ -495,4 +498,5 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
         context->txn_->append_write_record(wr);
     }
     ifs.close();
+    delete[] buffer;
 }
