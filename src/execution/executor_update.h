@@ -200,7 +200,7 @@ public:
             //更新记录
             fh_->update_record(rid, rec->data, context_);
             //更新事务
-            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
+            std::shared_ptr<WriteRecord> wr = std::make_shared<WriteRecord>(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
             context_->txn_->append_write_record(wr);
         }
 

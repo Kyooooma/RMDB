@@ -494,7 +494,7 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
             delete[] key;
         }
         //更新事务
-        auto *wr = new WriteRecord(WType::INSERT_TUPLE, tab_name, rid_, rec);
+        std::shared_ptr<WriteRecord> wr = std::make_shared<WriteRecord>(WType::INSERT_TUPLE, tab_name, rid_, rec);
         context->txn_->append_write_record(wr);
     }
     ifs.close();
