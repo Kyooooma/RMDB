@@ -415,6 +415,7 @@ std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Ri
         }
         buffer_pool_manager_->unpin_page(leaf->get_page_id(), true);
         buffer_pool_manager_->unpin_page(node->get_page_id(), true);
+        delete node;
     } else {
         res = leaf->get_page_no();
         buffer_pool_manager_->unpin_page(leaf->get_page_id(), true);
@@ -810,6 +811,7 @@ void IxIndexHandle::maintain_parent(IxNodeHandle *node) {
             break;
         }
         memcpy(parent_key, child_first_key, file_hdr_->col_tot_len_);  // 修改了parent node
+        delete curr;
         curr = parent;
 
         assert(buffer_pool_manager_->unpin_page(parent->get_page_id(), true));
