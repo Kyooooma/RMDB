@@ -55,6 +55,9 @@ class Transaction {
     inline void delete_write_record() { write_set_->pop_back(); }
     inline WriteRecord * get_last_write_record() { return write_set_->back(); }
     inline void clear(){
+        for (auto i : *write_set_) {
+            delete i;
+        }
         write_set_->clear();
         lock_set_->clear();
         index_latch_page_set_->clear();

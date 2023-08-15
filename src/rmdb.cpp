@@ -60,9 +60,13 @@ void sigint_handler(int signo) {
 
 // 判断当前正在执行的是显式事务还是单条SQL语句的事务，并更新事务ID
 void SetTransaction(txn_id_t *txn_id, Context *context) {
+    if (context->txn_ != nullptr) txn_manager->txn_map.erase(context->txn_->get_transaction_id());
+    delete context->txn_;
     context->txn_ = txn_manager->get_transaction(*txn_id);
     if (context->txn_ == nullptr || context->txn_->get_state() == TransactionState::COMMITTED ||
         context->txn_->get_state() == TransactionState::ABORTED) {
+        if (context->txn_ != nullptr) txn_manager->txn_map.erase(context->txn_->get_transaction_id());
+        delete context->txn_;
         context->txn_ = txn_manager->begin(nullptr, context->log_mgr_);
         *txn_id = context->txn_->get_transaction_id();
         context->txn_->set_txn_mode(false);
@@ -234,7 +238,7 @@ void *client_handler(void *sock_fd) {
         }
         delete context;
     }
-
+    delete[] data_send;
     // Clear
     std::cout << "Terminating current client_connection..." << std::endl;
     close(fd);           // close a file descriptor.
