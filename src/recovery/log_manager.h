@@ -474,6 +474,7 @@ public:
     }
 
     ~IndexInsertLogRecord() {
+//        delete[] key_;
         delete[] ix_name_;
     }
 
@@ -551,7 +552,7 @@ public:
     }
 
     ~IndexDeleteLogRecord() {
-        delete[] key_;
+//        delete[] key_;
         delete[] ix_name_;
     }
 

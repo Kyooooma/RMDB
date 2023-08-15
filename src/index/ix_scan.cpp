@@ -27,6 +27,7 @@ void IxScan::next() {
         iid_.page_no = node->get_next_leaf();
     }
     bpm_->unpin_page(node->get_page_id(), true);
+    delete node;
 }
 
 Rid IxScan::rid() const {

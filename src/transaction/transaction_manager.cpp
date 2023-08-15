@@ -113,7 +113,7 @@ void TransactionManager::insert_index(const std::string& tab_name, RmRecord* rec
         delete index_log;
         auto result = ih->insert_entry(key, rid_, nullptr);
         assert(result.second == true);
-        free(key);
+        delete[] key;
     }
 }
 

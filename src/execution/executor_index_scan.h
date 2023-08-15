@@ -218,6 +218,7 @@ public:
             }
             scan_->next();
         }
+        delete[] key;
     }
 
     void nextTuple() override {

@@ -30,7 +30,9 @@ class Transaction {
         thread_id_ = std::this_thread::get_id();
     }
 
-    ~Transaction() = default;
+    ~Transaction() {
+        clear();
+    }
 
     inline txn_id_t get_transaction_id() { return txn_id_; }
 
