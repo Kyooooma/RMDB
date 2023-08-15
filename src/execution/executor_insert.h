@@ -87,7 +87,7 @@ public:
             context_->txn_->set_prev_lsn(index_log->lsn_);
             delete index_log;
             auto result = ih->insert_entry(key, rid_, context_->txn_);
-            free(key);
+            delete[] key;
             if(!result.second){
                 //说明插入失败
                 fail_pos = i;

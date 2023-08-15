@@ -216,7 +216,7 @@ IxIndexHandle::IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffe
     disk_manager_->read_page(fd, IX_FILE_HDR_PAGE, buf, PAGE_SIZE);
     file_hdr_ = new IxFileHdr();
     file_hdr_->deserialize(buf);
-
+    delete[] buf;
     // disk_manager管理的fd对应的文件中，设置从file_hdr_->num_pages开始分配page_no
     int now_page_no = disk_manager_->get_fd2pageno(fd);
     disk_manager_->set_fd2pageno(fd, now_page_no + 1);
@@ -418,6 +418,7 @@ std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Ri
         res = leaf->get_page_no();
         buffer_pool_manager_->unpin_page(leaf->get_page_id(), true);
     }
+    delete leaf;
     return {res, true};
 }
 
@@ -460,6 +461,7 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction *transaction) {
         return true;
     }
     buffer_pool_manager_->unpin_page(leaf->get_page_id(), true);
+    delete leaf;
     return false;
 }
 

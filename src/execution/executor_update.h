@@ -69,7 +69,7 @@ public:
             context_->txn_->set_prev_lsn(index_log->lsn_);
             delete index_log;
             ih->delete_entry(key, context_->txn_);
-            free(key);
+            delete[] key;
         }
     }
 
@@ -94,7 +94,7 @@ public:
             context_->txn_->set_prev_lsn(index_log->lsn_);
             delete index_log;
             auto result = ih->insert_entry(key, rid_, context_->txn_);
-            free(key);
+            delete[] key;
             if (!result.second) {
                 fail_p = i;
                 break;

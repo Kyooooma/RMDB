@@ -88,7 +88,7 @@ void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec
         context_->txn_->set_prev_lsn(index_log->lsn_);
         delete index_log;
         ih->delete_entry(key, nullptr);
-        free(key);
+        delete[] key;
     }
 }
 

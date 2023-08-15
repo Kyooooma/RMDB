@@ -298,6 +298,7 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
             break;
         }
         scan_->next();
+        delete[] key;
     }
     if (is_fail) {
         drop_index(tab_name, col_names, context);
