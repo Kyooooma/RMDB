@@ -86,3 +86,4 @@ googlemock/gtest
 /src/parser/lex.yy.cpp
 /src/parser/yacc.tab.cpp
 /src/parser/yacc.tab.h
+*.csv
