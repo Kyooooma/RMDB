@@ -187,6 +187,9 @@ private:
 
 public:
     IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd);
+    ~IxIndexHandle() {
+        delete file_hdr_;
+    }
 
     int get_fd(){return fd_;}
 

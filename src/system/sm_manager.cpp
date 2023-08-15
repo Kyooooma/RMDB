@@ -488,7 +488,7 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
             context->txn_->set_prev_lsn(index_log->lsn_);
             delete index_log;
             ih->insert_entry(key, rid_, context->txn_);
-            free(key);
+            delete[] key;
         }
         //更新事务
         auto *wr = new WriteRecord(WType::INSERT_TUPLE, tab_name, rid_, rec);
