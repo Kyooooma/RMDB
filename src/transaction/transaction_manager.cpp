@@ -35,7 +35,6 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     log->prev_lsn_ = txn->get_prev_lsn();
     log_manager->add_log_to_buffer(log);
     txn->set_prev_lsn(log->lsn_);
-    delete log;
     return txn;
 }
 
@@ -63,7 +62,6 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     log->prev_lsn_ = txn->get_prev_lsn();
     log_manager->add_log_to_buffer(log);
     txn->set_prev_lsn(log->lsn_);
-    delete log;
     // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
 }
@@ -86,7 +84,7 @@ void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec
         index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
         context_->log_mgr_->add_log_to_buffer(index_log);
         context_->txn_->set_prev_lsn(index_log->lsn_);
-        delete index_log;
+
         ih->delete_entry(key, nullptr);
         free(key);
     }
@@ -110,7 +108,7 @@ void TransactionManager::insert_index(const std::string& tab_name, RmRecord* rec
         index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
         context_->log_mgr_->add_log_to_buffer(index_log);
         context_->txn_->set_prev_lsn(index_log->lsn_);
-        delete index_log;
+
         auto result = ih->insert_entry(key, rid_, nullptr);
         assert(result.second == true);
         free(key);
@@ -150,7 +148,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
             context->log_mgr_->add_log_to_buffer(logRecord);
             context->txn_->set_prev_lsn(logRecord->lsn_);
-            delete logRecord;
+
             delete_index(tab_name, &rec, rid, context);
             rfh->delete_record(rid, context);
         }else if(type == WType::DELETE_TUPLE){
@@ -161,7 +159,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
             context->log_mgr_->add_log_to_buffer(logRecord);
             context->txn_->set_prev_lsn(logRecord->lsn_);
-            delete logRecord;
+
             insert_index(tab_name, &rec, rid, context);
             rfh->insert_record(rid, rec.data);
         }else if(type == WType::UPDATE_TUPLE){
@@ -174,7 +172,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
             context->log_mgr_->add_log_to_buffer(logRecord);
             context->txn_->set_prev_lsn(logRecord->lsn_);
-            delete logRecord;
+
             delete_index(tab_name, old.get(), rid, context);
             rfh->update_record(rid, rec.data, context);
             insert_index(tab_name, &rec, rid, context);
@@ -192,7 +190,6 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     log->prev_lsn_ = txn->get_prev_lsn();
     log_manager->add_log_to_buffer(log);
     txn->set_prev_lsn(log->lsn_);
-    delete log;
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
 }

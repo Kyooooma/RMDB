@@ -67,7 +67,7 @@ public:
             index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
             context_->log_mgr_->add_log_to_buffer(index_log);
             context_->txn_->set_prev_lsn(index_log->lsn_);
-            delete index_log;
+
             ih->delete_entry(key, context_->txn_);
             free(key);
         }
@@ -92,7 +92,7 @@ public:
             index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
             context_->log_mgr_->add_log_to_buffer(index_log);
             context_->txn_->set_prev_lsn(index_log->lsn_);
-            delete index_log;
+
             auto result = ih->insert_entry(key, rid_, context_->txn_);
             free(key);
             if (!result.second) {
@@ -120,7 +120,7 @@ public:
                 index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
                 context_->log_mgr_->add_log_to_buffer(index_log);
                 context_->txn_->set_prev_lsn(index_log->lsn_);
-                delete index_log;
+
                 ih->delete_entry(key, context_->txn_);
                 free(key);
             }
@@ -196,7 +196,6 @@ public:
             logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
             context_->log_mgr_->add_log_to_buffer(logRecord);
             context_->txn_->set_prev_lsn(logRecord->lsn_);
-            delete logRecord;
             //更新记录
             fh_->update_record(rid, rec->data, context_);
             //更新事务
@@ -222,7 +221,7 @@ public:
                 logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
                 context_->log_mgr_->add_log_to_buffer(logRecord);
                 context_->txn_->set_prev_lsn(logRecord->lsn_);
-                delete logRecord;
+
                 fh_->update_record(rid_, rec_.data, context_);
                 context_->txn_->delete_write_record();
             }

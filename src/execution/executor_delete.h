@@ -57,7 +57,6 @@ public:
             index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
             context_->log_mgr_->add_log_to_buffer(index_log);
             context_->txn_->set_prev_lsn(index_log->lsn_);
-            delete index_log;
             //删除索引
             ih->delete_entry(key, context_->txn_);
             free(key);
@@ -72,7 +71,6 @@ public:
             logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
             context_->log_mgr_->add_log_to_buffer(logRecord);
             context_->txn_->set_prev_lsn(logRecord->lsn_);
-            delete logRecord;
             //实际删除
             delete_index(rec.get(), rid);
             fh_->delete_record(rid, context_);
