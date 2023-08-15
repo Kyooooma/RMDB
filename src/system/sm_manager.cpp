@@ -290,7 +290,7 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
         index_log->prev_lsn_ = context->txn_->get_prev_lsn();
         context->log_mgr_->add_log_to_buffer_load(index_log);
         context->txn_->set_prev_lsn(index_log->lsn_);
-
+        delete index_log;
         auto result = ih->insert_entry(key, rid_, context->txn_);
         if (!result.second) {
             //说明不满足唯一性，插入失败，需要rollback
@@ -467,6 +467,7 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
         logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
         context->log_mgr_->add_log_to_buffer_load(logRecord);
         context->txn_->set_prev_lsn(logRecord->lsn_);
+        delete logRecord;
         // 更新索引
         for (auto & index : tab_info.indexes) {
             auto ix_name = get_ix_manager()->get_index_name(tab_name, index.cols);
@@ -484,7 +485,7 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
             index_log->prev_lsn_ = context->txn_->get_prev_lsn();
             context->log_mgr_->add_log_to_buffer_load(index_log);
             context->txn_->set_prev_lsn(index_log->lsn_);
-
+            delete index_log;
             ih->insert_entry(key, rid_, context->txn_);
             free(key);
         }
