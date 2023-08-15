@@ -67,6 +67,7 @@ public:
         logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
         context_->log_mgr_->add_log_to_buffer(logRecord);
         context_->txn_->set_prev_lsn(logRecord->lsn_);
+        delete logRecord;
         // 更新索引
         for (int i = 0; i < tab_.indexes.size(); i++) {
             auto &index = tab_.indexes[i];
@@ -84,7 +85,7 @@ public:
             index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
             context_->log_mgr_->add_log_to_buffer(index_log);
             context_->txn_->set_prev_lsn(index_log->lsn_);
-
+            delete index_log;
             auto result = ih->insert_entry(key, rid_, context_->txn_);
             free(key);
             if(!result.second){
@@ -111,7 +112,7 @@ public:
                 index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
                 context_->log_mgr_->add_log_to_buffer(index_log);
                 context_->txn_->set_prev_lsn(index_log->lsn_);
-
+                delete index_log;
                 ih->delete_entry(key, context_->txn_);
                 free(key);
             }
@@ -120,6 +121,7 @@ public:
             logRecord_->prev_lsn_ = context_->txn_->get_prev_lsn();
             context_->log_mgr_->add_log_to_buffer(logRecord_);
             context_->txn_->set_prev_lsn(logRecord_->lsn_);
+            delete logRecord_;
             //实际删除
             fh_->delete_record(rid_, context_);
             throw RMDBError("Insert Error!!");

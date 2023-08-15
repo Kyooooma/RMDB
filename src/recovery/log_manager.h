@@ -64,7 +64,9 @@ public:
         log_tid_ = *reinterpret_cast<const txn_id_t *>(src + OFFSET_LOG_TID);
         prev_lsn_ = *reinterpret_cast<const lsn_t *>(src + OFFSET_PREV_LSN);
     }
+    virtual ~LogRecord(){
 
+    }
     // used for debug
     virtual void format_print() {
         std::cout << "log type in father_function: " << LogTypeStr[log_type_] << "\n";
