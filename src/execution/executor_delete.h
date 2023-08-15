@@ -77,7 +77,7 @@ public:
             delete_index(rec.get(), rid);
             fh_->delete_record(rid, context_);
             //更新事务
-            auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
+            std::shared_ptr<WriteRecord> wr = std::make_shared<WriteRecord>(WType::DELETE_TUPLE, tab_name_, rid, *rec);
             context_->txn_->append_write_record(wr);
         }
         return nullptr;
