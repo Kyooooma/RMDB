@@ -30,8 +30,6 @@ public:
 
     ~Context(){
         delete[] data_send_;
-        delete lock_mgr_;
-        delete log_mgr_;
         delete txn_;
         delete offset_;
     }
