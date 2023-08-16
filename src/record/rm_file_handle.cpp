@@ -49,6 +49,7 @@ Rid RmFileHandle::insert_record(char *buf, Context *context) {
     rph.page_hdr->num_records++;// 页面记录数+1
     if (rph.page_hdr->num_records == rph.file_hdr->num_records_per_page) {// 说明页面已满
         file_hdr_.first_free_page_no = rph.page_hdr->next_free_page_no;
+        buffer_pool_manager_->delete_page(rph.page->get_page_id());
     }
     return {rph.page->get_page_id().page_no, slot_no};
 }
@@ -69,6 +70,7 @@ void RmFileHandle::insert_record(const Rid &rid, char *buf) {
         rph.page_hdr->num_records++;// 页面记录数+1
         if (rph.page_hdr->num_records == rph.file_hdr->num_records_per_page) {// 说明页面已满
             file_hdr_.first_free_page_no = rph.page_hdr->next_free_page_no;//tbd
+            buffer_pool_manager_->delete_page(rph.page->get_page_id());
         }
     }
 }

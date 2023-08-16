@@ -466,12 +466,12 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
         }
         //实际插入
         auto rid_ = rfh->insert_record(rec.data, nullptr);
-//        //更新日志-插入
-//        auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid_, tab_name);
-//        logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
-//        context->log_mgr_->add_log_to_buffer_load(logRecord);
-//        context->txn_->set_prev_lsn(logRecord->lsn_);
-//        delete logRecord;
+        //更新日志-插入
+        auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid_, tab_name);
+        logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
+        context->log_mgr_->add_log_to_buffer_load(logRecord);
+        context->txn_->set_prev_lsn(logRecord->lsn_);
+        delete logRecord;
         // 更新索引
         for (auto & index : tab_info.indexes) {
             auto ix_name = get_ix_manager()->get_index_name(tab_name, index.cols);
@@ -482,20 +482,20 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
                 memcpy(key + offset, rec.data + index.cols[j].offset, index.cols[j].len);
                 offset += index.cols[j].len;
             }
-//
-//            //更新索引插入日志
-//            auto *index_log = new IndexInsertLogRecord(context->txn_->get_transaction_id(), key, rid_, ix_name,
-//                                                       index.col_tot_len);
-//            index_log->prev_lsn_ = context->txn_->get_prev_lsn();
-//            context->log_mgr_->add_log_to_buffer_load(index_log);
-//            context->txn_->set_prev_lsn(index_log->lsn_);
-//            delete index_log;
+
+            //更新索引插入日志
+            auto *index_log = new IndexInsertLogRecord(context->txn_->get_transaction_id(), key, rid_, ix_name,
+                                                       index.col_tot_len);
+            index_log->prev_lsn_ = context->txn_->get_prev_lsn();
+            context->log_mgr_->add_log_to_buffer_load(index_log);
+            context->txn_->set_prev_lsn(index_log->lsn_);
+            delete index_log;
             ih->insert_entry(key, rid_, context->txn_);
-//            delete[] key;
+            delete[] key;
         }
-//        //更新事务
-//        std::shared_ptr<WriteRecord> wr = std::make_shared<WriteRecord>(WType::INSERT_TUPLE, tab_name, rid_, rec);
-//        context->txn_->append_write_record(wr);
+        //更新事务
+        std::shared_ptr<WriteRecord> wr = std::make_shared<WriteRecord>(WType::INSERT_TUPLE, tab_name, rid_, rec);
+        context->txn_->append_write_record(wr);
     }
     ifs.close();
     delete[] buffer;
