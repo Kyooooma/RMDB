@@ -93,6 +93,10 @@ void *client_handler(void *sock_fd) {
     bool output_ellipsis = false;
     std::string set_off = "set output_file off";
 
+    // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
+    auto *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset,
+                                output_ellipsis);
+
     while (true) {
         std::cout << "Waiting for request..." << std::endl;
         memset(data_recv, 0, BUFFER_LENGTH);
@@ -123,7 +127,7 @@ void *client_handler(void *sock_fd) {
         std::cout << "Read from client " << fd << ": " << data_recv << std::endl;
 
         if (memcmp(data_recv, set_off.c_str(), set_off.length()) == 0) {
-            output_ellipsis = true;
+            context->output_ellipsis_ = true;
             memset(data_send, '\0', BUFFER_LENGTH);
             // future TODO: 格式化 sql_handler.result, 传给客户端
             // send result with fixed format, use protobuf in the future
@@ -135,11 +139,9 @@ void *client_handler(void *sock_fd) {
 
         memset(data_send, '\0', BUFFER_LENGTH);
         offset = 0;
-
-        // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
-        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset,
-                                       output_ellipsis);
-
+        context->txn_ = nullptr;
+        context->data_send_ = data_send;
+        context->offset_ = &offset;
         //事务处理部分
         SetTransaction(&txn_id, context);
 
@@ -157,7 +159,11 @@ void *client_handler(void *sock_fd) {
                 }
             }
             tab_name.pop_back();
-            sm_manager->load_record(file_name, tab_name, context);
+            try{
+                sm_manager->load_record(file_name, tab_name, context);
+            }catch (std::exception &e){
+                std::cout << e.what() << '\n';
+            }
             if (write(fd, data_send, 1) == -1) {
                 break;
             }
@@ -236,9 +242,9 @@ void *client_handler(void *sock_fd) {
         if (!context->txn_->get_txn_mode()) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
-        delete context;
     }
     delete[] data_send;
+    delete context;
     // Clear
     std::cout << "Terminating current client_connection..." << std::endl;
     close(fd);           // close a file descriptor.
