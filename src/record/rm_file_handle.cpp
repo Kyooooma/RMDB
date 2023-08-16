@@ -24,6 +24,7 @@ std::unique_ptr<RmRecord> RmFileHandle::get_record(const Rid &rid, Context *cont
     RmPageHandle rph = fetch_page_handle(rid.page_no);
     char *data = rph.get_slot(rid.slot_no);
     std::unique_ptr<RmRecord> res = std::make_unique<RmRecord>(rph.file_hdr->record_size, data);
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
     return res;
 }
 
@@ -49,9 +50,10 @@ Rid RmFileHandle::insert_record(char *buf, Context *context) {
     rph.page_hdr->num_records++;// 页面记录数+1
     if (rph.page_hdr->num_records == rph.file_hdr->num_records_per_page) {// 说明页面已满
         file_hdr_.first_free_page_no = rph.page_hdr->next_free_page_no;
-        buffer_pool_manager_->delete_page(rph.page->get_page_id());
     }
-    return {rph.page->get_page_id().page_no, slot_no};
+    Rid rid = {rph.page->get_page_id().page_no, slot_no};
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
+    return rid;
 }
 
 /**
@@ -70,9 +72,9 @@ void RmFileHandle::insert_record(const Rid &rid, char *buf) {
         rph.page_hdr->num_records++;// 页面记录数+1
         if (rph.page_hdr->num_records == rph.file_hdr->num_records_per_page) {// 说明页面已满
             file_hdr_.first_free_page_no = rph.page_hdr->next_free_page_no;//tbd
-            buffer_pool_manager_->delete_page(rph.page->get_page_id());
         }
     }
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
 }
 
 /**
@@ -95,6 +97,7 @@ void RmFileHandle::delete_record(const Rid &rid, Context *context) {
     if (rph.page_hdr->num_records + 1 >= rph.file_hdr->num_records_per_page) {// 说明页面已满 -> 未满
         release_page_handle(rph);
     }
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
 }
 
 
@@ -114,6 +117,7 @@ void RmFileHandle::update_record(const Rid &rid, char *buf, Context *context) {
 //    }
     RmPageHandle rph = fetch_page_handle(rid.page_no);
     memcpy(rph.get_slot(rid.slot_no), buf, rph.file_hdr->record_size);
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
 }
 
 /**
