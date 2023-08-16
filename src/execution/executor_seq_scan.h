@@ -65,7 +65,6 @@ public:
             }
             scan_->next();
         }
-
     }
 
     /**
