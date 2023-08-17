@@ -159,11 +159,7 @@ void *client_handler(void *sock_fd) {
                 }
             }
             tab_name.pop_back();
-            try{
-                sm_manager->load_record(file_name, tab_name, context);
-            }catch (std::exception &e){
-                std::cout << e.what() << '\n';
-            }
+            sm_manager->load_record(file_name, tab_name, context);
             if (write(fd, data_send, 1) == -1) {
                 break;
             }

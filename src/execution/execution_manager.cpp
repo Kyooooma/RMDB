@@ -160,7 +160,6 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
         if (type == "count") flag = 1;
         for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
             auto Tuple = executorTreeRoot->Next();
-            std::vector<std::string> columns;
             for (auto &col: executorTreeRoot->cols()) {
                 char *rec_buf = Tuple->data + col.offset;
                 if (type == "count") ans1++, flag = 1;

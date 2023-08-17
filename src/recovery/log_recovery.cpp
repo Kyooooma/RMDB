@@ -104,6 +104,8 @@ void RecoveryManager::analyze() {
         }
         off += offset;
     }
+    std::cout << logs.size() << '\n';
+    std::cout << "analyze over\n";
     //清空索引并重建
     for (auto &i: tables) {
         auto &tab = sm_manager_->db_.get_table(i);
@@ -172,6 +174,7 @@ void RecoveryManager::redo() {
             std::cout << "redo error\n";
         }
     }
+    std::cout << "redo over\n";
 }
 
 /**
@@ -179,6 +182,7 @@ void RecoveryManager::redo() {
  */
 void RecoveryManager::undo() {
     rollback(false);
+    std::cout << "undo over\n";
 }
 
 void RecoveryManager::rollback(bool flag) {
@@ -254,4 +258,5 @@ void RecoveryManager::rollback(bool flag) {
             }
         }
     }
+    std::cout << "roll back over\n";
 }
