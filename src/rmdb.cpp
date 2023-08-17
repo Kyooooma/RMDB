@@ -246,7 +246,6 @@ void *client_handler(void *sock_fd) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
     }
-    delete[] data_send;
     delete context;
     // Clear
     std::cout << "Terminating current client_connection..." << std::endl;

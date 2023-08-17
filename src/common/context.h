@@ -30,8 +30,6 @@ public:
 
     ~Context(){
         delete[] data_send_;
-        delete txn_;
-        delete offset_;
     }
 
     // TransactionManager *txn_mgr_;
