@@ -25,7 +25,7 @@ private:
     size_t len_;                        // scan后生成的每条记录的长度
     std::vector<Condition> fed_conds_;  // 同conds_，两个字段相同
 
-    Rid rid_;                           // 当前扫描到的记录的rid,Next()返回该rid对应的records
+    Rid rid_{};                           // 当前扫描到的记录的rid,Next()返回该rid对应的records
     std::unique_ptr<RecScan> scan_;     // table_iterator
 
     SmManager *sm_manager_;

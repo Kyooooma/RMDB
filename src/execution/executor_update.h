@@ -21,7 +21,7 @@ See the Mulan PSL v2 for more details. */
 class UpdateExecutor : public AbstractExecutor {
 private:
     TabMeta tab_;
-    size_t len_;
+    size_t len_{};
     std::vector<Condition> conds_;
     RmFileHandle *fh_;
     std::vector<Rid> rids_;

@@ -167,6 +167,9 @@ void *client_handler(void *sock_fd) {
             if (write(fd, data_send, 1) == -1) {
                 break;
             }
+            if (!context->txn_->get_txn_mode()) {
+                txn_manager->commit(context->txn_, context->log_mgr_);
+            }
             continue;
         }
 
