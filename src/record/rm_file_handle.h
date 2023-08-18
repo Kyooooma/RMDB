@@ -29,8 +29,8 @@ struct RmPageHandle {
     char *slots;                // page->data的第三部分，存储表的记录，指针指向首地址，每个slot的长度为file_hdr->record_size
 
     RmPageHandle(const RmFileHdr *fhdr_, Page *page_) : file_hdr(fhdr_), page(page_) {
-        page_hdr = reinterpret_cast<RmPageHdr *>(page->get_data() + page->OFFSET_PAGE_HDR);
-        bitmap = page->get_data() + sizeof(RmPageHdr) + page->OFFSET_PAGE_HDR;
+        page_hdr = reinterpret_cast<RmPageHdr *>(page->get_data() + Page::OFFSET_PAGE_HDR);
+        bitmap = page->get_data() + sizeof(RmPageHdr) + Page::OFFSET_PAGE_HDR;
         slots = bitmap + file_hdr->bitmap_size;
     }
 

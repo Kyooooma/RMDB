@@ -91,8 +91,7 @@ public:
      * @return std::unique_ptr<RmRecord>
      */
     std::unique_ptr<RmRecord> Next() override {
-        auto rec = fh_->get_record(rid_, context_);
-        return rec;
+        return fh_->get_record(rid_, context_);
     }
 
     const std::vector<ColMeta> &cols() const override {

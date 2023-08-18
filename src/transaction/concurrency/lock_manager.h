@@ -43,7 +43,9 @@ class LockManager {
     };
 
 public:
-    LockManager() {}
+    LockManager() {
+
+    }
 
     ~LockManager() {}
 
