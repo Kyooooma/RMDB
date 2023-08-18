@@ -44,7 +44,6 @@ public:
                       Context *context) {
         sm_manager_ = sm_manager;
         context_ = context;
-        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
         tab_name_ = std::move(tab_name);
         tab_ = sm_manager_->db_.get_table(tab_name_);
         conds_ = std::move(conds);
