@@ -231,7 +231,7 @@ IxIndexHandle::IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffe
  * @param transaction 事务参数，如果不需要则默认传入nullptr
  * @return [leaf node] and [root_is_latched] 返回目标叶子结点以及根结点是否加锁
  * @note need to Unlatch and unpin the leaf node outside!
- * 注意：用了FindLeafPage之后一定要unlatch叶结点，否则下次latch该结点会堵塞！
+ * 注意：用了FindLeafPage之后一定要unlatch叶结点，否则下次latch该结点会堵塞！unpin!!!
  */
 std::pair<std::shared_ptr<IxNodeHandle>, bool> IxIndexHandle::find_leaf_page(const char *key, Operation operation,
                                                               Transaction *transaction, bool find_first) {
@@ -242,7 +242,7 @@ std::pair<std::shared_ptr<IxNodeHandle>, bool> IxIndexHandle::find_leaf_page(con
     auto root = fetch_node(file_hdr_->root_page_);
     while (!root->page_hdr->is_leaf) {
         auto nex = fetch_node(root->internal_lookup(key));
-        buffer_pool_manager_->unpin_page(root->get_page_id(), true);
+        buffer_pool_manager_->unpin_page(root->get_page_id(), false);
         root = nex;
     }
     return {root, false};
