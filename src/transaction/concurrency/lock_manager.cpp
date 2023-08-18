@@ -539,6 +539,7 @@ bool LockManager::unlock(Transaction *txn, LockDataId lock_data_id) {
             }
         }
     }
+    if (request_queue.request_queue_.empty()) lock_table_.erase(lock_data_id);
     return true;
 }
 
