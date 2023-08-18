@@ -54,7 +54,7 @@ public:
      * @param {txn_id_t} txn_id 事务ID
      */    
     Transaction* get_transaction(txn_id_t txn_id) {
-        if(txn_id == INVALID_TXN_ID) return nullptr;
+        if(txn_id == INVALID_TXN_ID || !TransactionManager::txn_map.count(txn_id)) return nullptr;
         
         std::unique_lock<std::mutex> lock(latch_);
         assert(TransactionManager::txn_map.find(txn_id) != TransactionManager::txn_map.end());

@@ -162,7 +162,7 @@ void *client_handler(void *sock_fd) {
             if (write(fd, data_send, 1) == -1) {
                 break;
             }
-            if (!context->txn_->get_txn_mode()) {
+            if (context->txn_ != nullptr && !context->txn_->get_txn_mode()) {
                 txn_manager->commit(context->txn_, context->log_mgr_);
             }
             continue;
@@ -237,7 +237,7 @@ void *client_handler(void *sock_fd) {
         // 如果是单挑语句，需要按照一个完整的事务来执行，所以执行完当前语句后，自动提交事务
 
         //事务处理部分
-        if (!context->txn_->get_txn_mode()) {
+        if (context->txn_ != nullptr && !context->txn_->get_txn_mode()) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
     }
