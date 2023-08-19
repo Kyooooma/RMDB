@@ -261,7 +261,7 @@ bool LockManager::lock_shared_on_table(const std::shared_ptr<Transaction>&txn, i
             }
         }
 
-        if (flag || txn->get_transaction_id() != mn) {
+        if (flag) {
             lock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
@@ -316,7 +316,10 @@ bool LockManager::lock_exclusive_on_table(const std::shared_ptr<Transaction>& tx
         for (auto i : request_queue_.request_queue_) {
             if (i.granted_) {
                 // 申请的年轻就滚蛋
-                if (i.txn_id_ < lock_request.txn_id_)  throw TransactionAbortException(lock_request.txn_id_, AbortReason::DEADLOCK_PREVENTION);
+                if (i.txn_id_ < lock_request.txn_id_) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                    throw TransactionAbortException(lock_request.txn_id_, AbortReason::DEADLOCK_PREVENTION);
+                }
             }
         }
         request_queue_.request_queue_.push_back(lock_request);
