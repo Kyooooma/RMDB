@@ -32,9 +32,9 @@ public:
     
     ~TransactionManager() = default;
 
-    Transaction* begin(Transaction* txn, LogManager* log_manager);
+    std::shared_ptr<Transaction> begin(std::shared_ptr<Transaction> txn, LogManager* log_manager);
 
-    void commit(Transaction* txn, LogManager* log_manager);
+    void commit(std::shared_ptr<Transaction> txn, LogManager* log_manager);
 
     void abort(Context* context, LogManager* log_manager);
 
@@ -52,13 +52,13 @@ public:
      * @description: 获取事务ID为txn_id的事务对象
      * @return {Transaction*} 事务对象的指针
      * @param {txn_id_t} txn_id 事务ID
-     */    
-    Transaction* get_transaction(txn_id_t txn_id) {
+     */
+    std::shared_ptr<Transaction> get_transaction(txn_id_t txn_id) {
         if(txn_id == INVALID_TXN_ID || !TransactionManager::txn_map.count(txn_id)) return nullptr;
         
         std::unique_lock<std::mutex> lock(latch_);
         assert(TransactionManager::txn_map.find(txn_id) != TransactionManager::txn_map.end());
-        auto *res = TransactionManager::txn_map[txn_id];
+        auto res = TransactionManager::txn_map[txn_id];
         lock.unlock();
         assert(res != nullptr);
         assert(res->get_thread_id() == std::this_thread::get_id());
@@ -70,7 +70,7 @@ public:
         return next_txn_id_++;
     }
 
-    static std::unordered_map<txn_id_t, Transaction *> txn_map;     // 全局事务表，存放事务ID与事务对象的映射关系
+    static std::unordered_map<txn_id_t, std::shared_ptr<Transaction>> txn_map;     // 全局事务表，存放事务ID与事务对象的映射关系
 
 private:
     ConcurrencyMode concurrency_mode_;      // 事务使用的并发控制算法，目前只需要考虑2PL

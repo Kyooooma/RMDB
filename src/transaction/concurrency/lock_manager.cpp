@@ -202,7 +202,7 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
  * @param {Transaction*} txn 要申请锁的事务对象指针
  * @param {int} tab_fd 目标表的fd
  */
-bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
+bool LockManager::lock_shared_on_table(std::shared_ptr<Transaction>txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
 //    std::cout << txn->get_transaction_id() << "申请表级S锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
@@ -290,7 +290,7 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
  * @param {Transaction*} txn 要申请锁的事务对象指针
  * @param {int} tab_fd 目标表的fd
  */
-bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
+bool LockManager::lock_exclusive_on_table(std::shared_ptr<Transaction> txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
 //    std::cout << txn->get_transaction_id() << "申请表级X锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
@@ -523,7 +523,7 @@ bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
  * @param {Transaction*} txn 要释放锁的事务对象指针
  * @param {LockDataId} lock_data_id 要释放的锁ID
  */
-bool LockManager::unlock(Transaction *txn, LockDataId lock_data_id) {
+bool LockManager::unlock(const std::shared_ptr<Transaction>&txn, LockDataId lock_data_id) {
     std::unique_lock<std::mutex> lock(latch_);
     txn->set_state(TransactionState::SHRINKING);
     auto &request_queue = lock_table_[lock_data_id];

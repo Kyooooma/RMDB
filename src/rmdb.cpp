@@ -65,7 +65,6 @@ void SetTransaction(txn_id_t *txn_id, Context *context) {
         context->txn_->get_state() == TransactionState::ABORTED) {
         if(context->txn_ != nullptr){
             txn_manager->txn_map.erase(context->txn_->get_transaction_id());
-            delete context->txn_;
         }
         context->txn_ = txn_manager->begin(nullptr, context->log_mgr_);
         *txn_id = context->txn_->get_transaction_id();

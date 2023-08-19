@@ -234,7 +234,7 @@ IxIndexHandle::IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffe
  * 注意：用了FindLeafPage之后一定要unlatch叶结点，否则下次latch该结点会堵塞！unpin!!!
  */
 std::pair<std::shared_ptr<IxNodeHandle>, bool> IxIndexHandle::find_leaf_page(const char *key, Operation operation,
-                                                              Transaction *transaction, bool find_first) {
+                                                                             const std::shared_ptr<Transaction>& transaction, bool find_first) {
     // Todo:
     // 1. 获取根节点
     // 2. 从根节点开始不断向下查找目标key
@@ -256,7 +256,7 @@ std::pair<std::shared_ptr<IxNodeHandle>, bool> IxIndexHandle::find_leaf_page(con
  * @param transaction 事务指针
  * @return bool 返回目标键值对是否存在
  */
-bool IxIndexHandle::get_value(const char *key, std::vector<Rid> *result, Transaction *transaction) {
+bool IxIndexHandle::get_value(const char *key, std::vector<Rid> *result, const std::shared_ptr<Transaction>& transaction) {
     // Todo:
     // 1. 获取目标key值所在的叶子结点
     // 2. 在叶子节点中查找目标key值的位置，并读取key对应的rid
@@ -334,8 +334,8 @@ std::shared_ptr<IxNodeHandle> IxIndexHandle::split(const std::shared_ptr<IxNodeH
  * 右半部分的键值对分裂为新的右兄弟节点，在参数中称为new_node（参考Split函数来理解old_node和new_node）
  * @note 本函数执行完毕后，new node和old node都需要在函数外面进行unpin
  */
-void IxIndexHandle::insert_into_parent(std::shared_ptr<IxNodeHandle> old_node, const char *key, std::shared_ptr<IxNodeHandle> new_node,
-                                       Transaction *transaction) {
+void IxIndexHandle::insert_into_parent(const std::shared_ptr<IxNodeHandle>& old_node, const char *key, const std::shared_ptr<IxNodeHandle>& new_node,
+                                       std::shared_ptr<Transaction> transaction) {
     // Todo:
     // 1. 分裂前的结点（原结点, old_node）是否为根结点，如果为根结点需要分配新的root
     // 2. 获取原结点（old_node）的父亲结点
@@ -377,7 +377,7 @@ void IxIndexHandle::insert_into_parent(std::shared_ptr<IxNodeHandle> old_node, c
  * @param transaction 事务指针
  * @return page_id_t 插入到的叶结点的page_no
  */
-std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Rid &value, Transaction *transaction) {
+std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Rid &value, const std::shared_ptr<Transaction>& transaction) {
     // Todo:
     // 1. 查找key值应该插入到哪个叶子节点
     // 2. 在该叶子节点中插入键值对
@@ -423,7 +423,7 @@ std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Ri
     return {res, true};
 }
 
-bool IxIndexHandle::check_entry(const char *key, Transaction *transaction){
+bool IxIndexHandle::check_entry(const char *key, std::shared_ptr<Transaction> transaction){
     auto leaf = find_leaf_page(key, Operation::FIND, transaction).first;
     auto pos = leaf->lower_bound(key);
     if (pos < leaf->get_size()) {
@@ -442,7 +442,7 @@ bool IxIndexHandle::check_entry(const char *key, Transaction *transaction){
  * @param key 要删除的key值
  * @param transaction 事务指针
  */
-bool IxIndexHandle::delete_entry(const char *key, Transaction *transaction) {
+bool IxIndexHandle::delete_entry(const char *key, std::shared_ptr<Transaction>transaction) {
     // Todo:
     // 1. 获取该键值对所在的叶子结点
     // 2. 在该叶子结点中删除键值对
@@ -476,7 +476,7 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction *transaction) {
  * If sibling's size + input page's size >= 2 * page's minsize, then redistribute.
  * Otherwise, merge(Coalesce).
  */
-bool IxIndexHandle::coalesce_or_redistribute(std::shared_ptr<IxNodeHandle> node, Transaction *transaction, bool *root_is_latched) {
+bool IxIndexHandle::coalesce_or_redistribute(std::shared_ptr<IxNodeHandle> node, std::shared_ptr<Transaction> transaction, bool *root_is_latched) {
     // Todo:
     // 1. 判断node结点是否为根节点
     //    1.1 如果是根节点，需要调用AdjustRoot() 函数来进行处理，返回根节点是否需要被删除
@@ -625,7 +625,7 @@ void IxIndexHandle::redistribute(std::shared_ptr<IxNodeHandle> neighbor_node, st
  * index>0，则neighbor是node前驱结点，表示：neighbor(left)  node(right)
  */
 bool IxIndexHandle::coalesce(std::shared_ptr<IxNodeHandle> *neighbor_node, std::shared_ptr<IxNodeHandle> *node, std::shared_ptr<IxNodeHandle> *parent, int index,
-                             Transaction *transaction, bool *root_is_latched) {
+                             std::shared_ptr<Transaction> transaction, bool *root_is_latched) {
     // Todo:
     // 1. 用index判断neighbor_node是否为node的前驱结点，若不是则交换两个结点，让neighbor_node作为左结点，node作为右结点
     // 2. 把node结点的键值对移动到neighbor_node中，并更新node结点孩子结点的父节点信息（调用maintain_child函数）
