@@ -65,9 +65,9 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     txn->set_prev_lsn(log->lsn_);
     delete log;
     // 5. 更新事务状态
-//    txn->set_state(TransactionState::COMMITTED);
-    txn_map.erase(txn->get_transaction_id());
-    delete txn;
+    txn->set_state(TransactionState::COMMITTED);
+//    txn_map.erase(txn->get_transaction_id());
+//    delete txn;
 }
 
 void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec, Rid rid_, Context* context_){
@@ -196,7 +196,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     txn->set_prev_lsn(log->lsn_);
     delete log;
     // 5. 更新事务状态
-//    txn->set_state(TransactionState::ABORTED);
-    txn_map.erase(txn->get_transaction_id());
-    delete txn;
+    txn->set_state(TransactionState::ABORTED);
+//    txn_map.erase(txn->get_transaction_id());
+//    delete txn;
 }
