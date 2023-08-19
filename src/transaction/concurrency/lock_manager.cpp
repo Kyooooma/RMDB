@@ -202,7 +202,7 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
  * @param {Transaction*} txn 要申请锁的事务对象指针
  * @param {int} tab_fd 目标表的fd
  */
-bool LockManager::lock_shared_on_table(std::shared_ptr<Transaction>txn, int tab_fd) {
+bool LockManager::lock_shared_on_table(const std::shared_ptr<Transaction>&txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
 //    std::cout << txn->get_transaction_id() << "申请表级S锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);

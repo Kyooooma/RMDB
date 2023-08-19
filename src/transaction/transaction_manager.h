@@ -34,7 +34,7 @@ public:
 
     std::shared_ptr<Transaction> begin(std::shared_ptr<Transaction> txn, LogManager* log_manager);
 
-    void commit(std::shared_ptr<Transaction> txn, LogManager* log_manager);
+    void commit(const std::shared_ptr<Transaction>& txn, LogManager* log_manager);
 
     void abort(Context* context, LogManager* log_manager);
 

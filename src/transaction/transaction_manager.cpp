@@ -44,7 +44,7 @@ std::shared_ptr<Transaction> TransactionManager::begin(std::shared_ptr<Transacti
  * @param {Transaction*} txn 需要提交的事务
  * @param {LogManager*} log_manager 日志管理器指针
  */
-void TransactionManager::commit(std::shared_ptr<Transaction> txn, LogManager* log_manager) {
+void TransactionManager::commit(const std::shared_ptr<Transaction>& txn, LogManager* log_manager) {
     // Todo:
     // 1. 如果存在未提交的写操作，提交所有的写操作
     // 2. 释放所有锁
@@ -66,8 +66,6 @@ void TransactionManager::commit(std::shared_ptr<Transaction> txn, LogManager* lo
     delete log;
     // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
-//    txn_map.erase(txn->get_transaction_id());
-//    delete txn;
 }
 
 void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec, Rid rid_, Context* context_){
@@ -197,6 +195,4 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     delete log;
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
-//    txn_map.erase(txn->get_transaction_id());
-//    delete txn;
 }

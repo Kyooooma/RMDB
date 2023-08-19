@@ -240,6 +240,9 @@ void *client_handler(void *sock_fd) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
     }
+    if(context->txn_ != nullptr){
+        txn_manager->txn_map.erase(context->txn_->get_transaction_id());
+    }
     delete context;
     // Clear
     std::cout << "Terminating current client_connection..." << std::endl;

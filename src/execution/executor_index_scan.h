@@ -228,7 +228,6 @@ public:
             rid_ = scan_->rid();
             try {
                 auto rec = fh_->get_record(rid_, context_);
-//                auto rec = fh_->get_record(rid_, context_);
                 if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
                     break;
                 }
