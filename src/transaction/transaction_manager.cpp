@@ -55,7 +55,7 @@ void TransactionManager::commit(const std::shared_ptr<Transaction>& txn, LogMana
     //释放事务相关资源，eg.锁集
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){
-        lock_manager_->unlock(txn, i);
+        lock_manager_->unlock(txn.get(), i);
     }
     txn->clear();
     // 4. 把事务日志刷入磁盘中
@@ -183,7 +183,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     //释放所有锁
     auto lock_set = txn->get_lock_set();
     for(auto i : *lock_set){
-        lock_manager_->unlock(txn, i);
+        lock_manager_->unlock(txn.get(), i);
     }
     //释放事务相关资源，eg.锁集
     txn->clear();

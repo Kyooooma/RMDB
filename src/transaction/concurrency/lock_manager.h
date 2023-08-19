@@ -27,7 +27,7 @@ class LockManager {
     class LockRequest {
     public:
         LockRequest(txn_id_t txn_id, LockMode lock_mode)
-            : txn_id_(txn_id), lock_mode_(lock_mode), granted_(false) {}
+                : txn_id_(txn_id), lock_mode_(lock_mode), granted_(false) {}
 
         txn_id_t txn_id_;   // 申请加锁的事务ID
         LockMode lock_mode_;    // 事务申请加锁的类型
@@ -43,9 +43,7 @@ class LockManager {
     };
 
 public:
-    LockManager() {
-
-    }
+    LockManager() {}
 
     ~LockManager() {}
 
@@ -53,15 +51,15 @@ public:
 
     bool lock_exclusive_on_record(Transaction* txn, const Rid& rid, int tab_fd);
 
-    bool lock_shared_on_table(const std::shared_ptr<Transaction>& txn, int tab_fd);
+    bool lock_shared_on_table(Transaction* txn, int tab_fd);
 
-    bool lock_exclusive_on_table(const std::shared_ptr<Transaction>& txn, int tab_fd);
+    bool lock_exclusive_on_table(Transaction* txn, int tab_fd);
 
     bool lock_IS_on_table(Transaction* txn, int tab_fd);
 
     bool lock_IX_on_table(Transaction* txn, int tab_fd);
 
-    bool unlock(const std::shared_ptr<Transaction>& txn, LockDataId lock_data_id);
+    bool unlock(Transaction* txn, LockDataId lock_data_id);
 
     bool check_loop(Transaction * txn);
 

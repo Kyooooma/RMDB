@@ -40,7 +40,7 @@ public:
         conds_ = std::move(conds);
         rids_ = std::move(rids);
         context_ = context;
-        context_->lock_mgr_->lock_exclusive_on_table(context->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
+        context_->lock_mgr_->lock_exclusive_on_table(context->txn_.get(), sm_manager_->fhs_[tab_name_]->GetFd());
         for (const auto &i: tab_.cols) {
             len_ += i.len;
         }
