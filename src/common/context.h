@@ -30,6 +30,7 @@ public:
 
     ~Context(){
         delete[] data_send_;
+        delete txn_;
     }
 
     // TransactionManager *txn_mgr_;

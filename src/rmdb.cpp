@@ -60,8 +60,6 @@ void sigint_handler(int signo) {
 
 // 判断当前正在执行的是显式事务还是单条SQL语句的事务，并更新事务ID
 void SetTransaction(txn_id_t *txn_id, Context *context) {
-    if (context->txn_ != nullptr) txn_manager->txn_map.erase(context->txn_->get_transaction_id());
-    delete context->txn_;
     context->txn_ = txn_manager->get_transaction(*txn_id);
     if (context->txn_ == nullptr || context->txn_->get_state() == TransactionState::COMMITTED ||
         context->txn_->get_state() == TransactionState::ABORTED) {
@@ -139,7 +137,6 @@ void *client_handler(void *sock_fd) {
 
         memset(data_send, '\0', BUFFER_LENGTH);
         offset = 0;
-        context->txn_ = nullptr;
         context->data_send_ = data_send;
         context->offset_ = &offset;
         //事务处理部分
@@ -242,6 +239,10 @@ void *client_handler(void *sock_fd) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
     }
+    if(context->txn_ != nullptr){
+        txn_manager->txn_map.erase(context->txn_->get_transaction_id());
+    }
+    std::cout << "size:: " << txn_manager->txn_map.size() << "\n";
     delete context;
     // Clear
     std::cout << "Terminating current client_connection..." << std::endl;
