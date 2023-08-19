@@ -51,6 +51,8 @@ pthread_mutex_t *sockfd_mutex;
 
 static jmp_buf jmpbuf;
 
+bool output_ellipsis = false;// 是否输出到output
+
 void sigint_handler(int signo) {
     should_exit = true;
     log_manager->flush_log_to_disk();
@@ -60,13 +62,12 @@ void sigint_handler(int signo) {
 
 // 判断当前正在执行的是显式事务还是单条SQL语句的事务，并更新事务ID
 void SetTransaction(txn_id_t *txn_id, Context *context) {
-    if (context->txn_ != nullptr) txn_manager->txn_map.erase(context->txn_->get_transaction_id());
-    delete context->txn_;
     context->txn_ = txn_manager->get_transaction(*txn_id);
     if (context->txn_ == nullptr || context->txn_->get_state() == TransactionState::COMMITTED ||
         context->txn_->get_state() == TransactionState::ABORTED) {
-        if (context->txn_ != nullptr) txn_manager->txn_map.erase(context->txn_->get_transaction_id());
-        delete context->txn_;
+        if(context->txn_ != nullptr){
+            txn_manager->delete_transaction(context->txn_->get_transaction_id());
+        }
         context->txn_ = txn_manager->begin(nullptr, context->log_mgr_);
         *txn_id = context->txn_->get_transaction_id();
         context->txn_->set_txn_mode(false);
@@ -90,7 +91,6 @@ void *client_handler(void *sock_fd) {
     std::string output = "establish client connection, sockfd: " + std::to_string(fd) + "\n";
     std::cout << output;
 
-    bool output_ellipsis = false;
     std::string set_off = "set output_file off";
 
     // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
@@ -127,7 +127,7 @@ void *client_handler(void *sock_fd) {
         std::cout << "Read from client " << fd << ": " << data_recv << std::endl;
 
         if (memcmp(data_recv, set_off.c_str(), set_off.length()) == 0) {
-            context->output_ellipsis_ = true;
+            output_ellipsis = true;
             memset(data_send, '\0', BUFFER_LENGTH);
             // future TODO: 格式化 sql_handler.result, 传给客户端
             // send result with fixed format, use protobuf in the future
@@ -139,7 +139,7 @@ void *client_handler(void *sock_fd) {
 
         memset(data_send, '\0', BUFFER_LENGTH);
         offset = 0;
-        context->txn_ = nullptr;
+        context->output_ellipsis_ = output_ellipsis;
         context->data_send_ = data_send;
         context->offset_ = &offset;
         //事务处理部分
@@ -163,7 +163,7 @@ void *client_handler(void *sock_fd) {
             if (write(fd, data_send, 1) == -1) {
                 break;
             }
-            if (!context->txn_->get_txn_mode()) {
+            if (context->txn_ != nullptr && !context->txn_->get_txn_mode()) {
                 txn_manager->commit(context->txn_, context->log_mgr_);
             }
             continue;
@@ -238,9 +238,12 @@ void *client_handler(void *sock_fd) {
         // 如果是单挑语句，需要按照一个完整的事务来执行，所以执行完当前语句后，自动提交事务
 
         //事务处理部分
-        if (!context->txn_->get_txn_mode()) {
+        if (context->txn_ != nullptr && !context->txn_->get_txn_mode()) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
+    }
+    if(context->txn_ != nullptr){
+        txn_manager->delete_transaction(context->txn_->get_transaction_id());
     }
     delete context;
     // Clear

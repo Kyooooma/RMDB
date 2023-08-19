@@ -47,9 +47,9 @@ bool LockManager::lock_shared_on_record(Transaction *txn, const Rid &rid, int ta
         lock.lock();
         //判环
         int flag = 0;
-//        if (!check_loop(txn)) {
-//            flag = 1;
-//        }
+        if (!check_loop(txn)) {
+            flag = 1;
+        }
         LockDataId lock_data_id_table = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id_table];
 
@@ -74,9 +74,9 @@ bool LockManager::lock_shared_on_record(Transaction *txn, const Rid &rid, int ta
             }
         }
         if (flag) {
-//            lock.unlock();
-//            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            continue;
         }
         // 行上加S锁
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::SHARED};
@@ -133,9 +133,9 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
         lock.lock();
         //判环
         int flag = 0;
-//        if (!check_loop(txn)) {
-//            flag = 1;
-//        }
+        if (!check_loop(txn)) {
+            flag = 1;
+        }
         LockDataId lock_data_id_table = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id_table];
 
@@ -175,9 +175,9 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
         }
 
         if (flag) {
-//            lock.unlock();
-//            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            continue;
         }
         // 行上加X锁
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::EXLUCSIVE};
@@ -202,7 +202,7 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
  * @param {Transaction*} txn 要申请锁的事务对象指针
  * @param {int} tab_fd 目标表的fd
  */
-bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
+bool LockManager::lock_shared_on_table(const std::shared_ptr<Transaction>&txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
 //    std::cout << txn->get_transaction_id() << "申请表级S锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
@@ -222,6 +222,15 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
     if (ok) {
         //需要加边(进入等待队列)
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::SHARED};
+        for (auto i : request_queue_.request_queue_) {
+            if (i.granted_ && i.lock_mode_ == LockMode::EXLUCSIVE) {
+                // 申请的年轻就滚蛋
+                if (i.txn_id_ < lock_request.txn_id_)  {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                    throw TransactionAbortException(lock_request.txn_id_, AbortReason::DEADLOCK_PREVENTION);
+                }
+            }
+        }
         request_queue_.request_queue_.push_back(lock_request);
         txn->set_lock_set(lock_data_id_table_);
     }
@@ -235,8 +244,10 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
 //        }
         LockDataId lock_data_id_table = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id_table];
-
+        txn_id_t mn = -1;
         for (auto &request: lock_request_queue.request_queue_) {
+            if (mn == -1) mn = request.txn_id_;
+            else mn = std::min(mn, request.txn_id_);
             if (request.txn_id_ == txn->get_transaction_id()) continue;
             // 表上有IX锁不能申请
             if (request.lock_mode_ == LockMode::INTENTION_EXCLUSIVE && request.granted_) {
@@ -250,10 +261,10 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
             }
         }
 
-        if (flag) {
-//            lock.unlock();
-//            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
+        if (flag || txn->get_transaction_id() != mn) {
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
         }
 
         // 表上加S锁
@@ -281,7 +292,7 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
  * @param {Transaction*} txn 要申请锁的事务对象指针
  * @param {int} tab_fd 目标表的fd
  */
-bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
+bool LockManager::lock_exclusive_on_table(const std::shared_ptr<Transaction>& txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
 //    std::cout << txn->get_transaction_id() << "申请表级X锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
@@ -302,20 +313,29 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
     if (ok) {
         //需要加边(进入等待队列)
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::EXLUCSIVE};
+        for (auto i : request_queue_.request_queue_) {
+            if (i.granted_) {
+                // 申请的年轻就滚蛋
+                if (i.txn_id_ < lock_request.txn_id_)  throw TransactionAbortException(lock_request.txn_id_, AbortReason::DEADLOCK_PREVENTION);
+            }
+        }
         request_queue_.request_queue_.push_back(lock_request);
         txn->set_lock_set(lock_data_id_);
     }
     lock.unlock();
     while (true) {
         lock.lock();
-        //判够吧环
+        //判环
         int flag = 0;
 //        if (!check_loop(txn)) {
 //            flag = 1;
 //        }
         LockDataId lock_data_id = {tab_fd, LockDataType::TABLE};
         auto &request_queue = lock_table_[lock_data_id];
+        txn_id_t mn = -1;
         for (auto &request: request_queue.request_queue_) {
+            if (mn == -1) mn = request.txn_id_;
+            else mn = std::min(mn, request.txn_id_);
             if (request.txn_id_ != txn->get_transaction_id()) {
                 //有人持有锁
                 if (request.lock_mode_ == LockMode::EXLUCSIVE && request.granted_) flag = 1;
@@ -325,10 +345,10 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
                 if (request.lock_mode_ == LockMode::S_IX && request.granted_) flag = 1;
             }
         }
-        if (flag) {
-//            lock.unlock();
-//            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
+        if (flag || mn != txn->get_transaction_id()) {
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
         }
         // 表上加X锁
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::EXLUCSIVE};
@@ -380,11 +400,11 @@ bool LockManager::lock_IS_on_table(Transaction *txn, int tab_fd) {
     lock.unlock();
     while (true) {
         lock.lock();
-        //判够吧环
+        //判环
         int flag = 0;
-//        if (!check_loop(txn)) {
-//            flag = 1;
-//        }
+        if (!check_loop(txn)) {
+            flag = 1;
+        }
         LockDataId lock_data_id = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id];
 
@@ -397,7 +417,9 @@ bool LockManager::lock_IS_on_table(Transaction *txn, int tab_fd) {
             }
         }
         if (flag) {
-            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            continue;
         }
 
         if (lock_request_queue.group_lock_mode_ == GroupLockMode::NON_LOCK) {
@@ -450,11 +472,11 @@ bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
     lock.unlock();
     while (true) {
         lock.lock();
-        //判够吧环
+        //判环
         int flag = 0;
-//        if (!check_loop(txn)) {
-//            flag = 1;
-//        }
+        if (!check_loop(txn)) {
+            flag = 1;
+        }
         LockDataId lock_data_id = {tab_fd, LockDataType::TABLE};
         auto &lock_request_queue = lock_table_[lock_data_id];
 
@@ -472,7 +494,9 @@ bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
             }
         }
         if (flag) {
-            throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            continue;
         }
 
         lock_request_queue.group_lock_mode_ = GroupLockMode::IX;
@@ -500,7 +524,7 @@ bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
  * @param {Transaction*} txn 要释放锁的事务对象指针
  * @param {LockDataId} lock_data_id 要释放的锁ID
  */
-bool LockManager::unlock(Transaction *txn, LockDataId lock_data_id) {
+bool LockManager::unlock(const std::shared_ptr<Transaction>&txn, LockDataId lock_data_id) {
     std::unique_lock<std::mutex> lock(latch_);
     txn->set_state(TransactionState::SHRINKING);
     auto &request_queue = lock_table_[lock_data_id];
@@ -539,6 +563,7 @@ bool LockManager::unlock(Transaction *txn, LockDataId lock_data_id) {
             }
         }
     }
+    if (request_queue.request_queue_.empty()) lock_table_.erase(lock_data_id);
     return true;
 }
 

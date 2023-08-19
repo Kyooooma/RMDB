@@ -101,8 +101,7 @@ public:
 };
 
 TEST_F(TransactionTest, BeginTest) {
-    Transaction *txn = nullptr;
-    txn = txn_manager->begin(txn, log_manager.get());
+    auto txn = txn_manager->begin(nullptr, log_manager.get());
 //
     EXPECT_EQ(txn_manager->txn_map.size(), 1);
     EXPECT_NE(txn, nullptr);
@@ -130,7 +129,7 @@ TEST_F(TransactionTest, CommitTest) {
     EXPECT_STREQ(result, str);
     // there should be 3 transactions
     EXPECT_EQ(txn_manager->get_next_txn_id(), 3);
-    Transaction *txn = txn_manager->get_transaction(1);
+    auto txn = txn_manager->get_transaction(1);
     EXPECT_EQ(txn->get_state(), TransactionState::COMMITTED);
 }
 
@@ -152,7 +151,7 @@ TEST_F(TransactionTest, AbortTest) {
         "Total record(s): 0\n";
     EXPECT_STREQ(result, str);
     EXPECT_EQ(txn_manager->get_next_txn_id(), 3);
-    Transaction *txn = txn_manager->get_transaction(1);
+    auto txn = txn_manager->get_transaction(1);
     EXPECT_EQ(txn->get_state(), TransactionState::ABORTED);
 }
 

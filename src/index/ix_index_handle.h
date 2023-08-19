@@ -194,25 +194,25 @@ public:
     int get_fd(){return fd_;}
 
     // for search
-    bool get_value(const char *key, std::vector<Rid> *result, Transaction *transaction);
+    bool get_value(const char *key, std::vector<Rid> *result, const std::shared_ptr<Transaction>& transaction);
 
-    std::pair<std::shared_ptr<IxNodeHandle>, bool> find_leaf_page(const char *key, Operation operation, Transaction *transaction,
+    std::pair<std::shared_ptr<IxNodeHandle>, bool> find_leaf_page(const char *key, Operation operation, const std::shared_ptr<Transaction>& transaction,
                                                    bool find_first = false);
 
     // for insert
-    std::pair<page_id_t, bool> insert_entry(const char *key, const Rid &value, Transaction *transaction);
+    std::pair<page_id_t, bool> insert_entry(const char *key, const Rid &value, const std::shared_ptr<Transaction>& transaction);
 
     // for check insert
-    bool check_entry(const char *key, Transaction *transaction);
+    bool check_entry(const char *key, std::shared_ptr<Transaction> transaction);
 
     std::shared_ptr<IxNodeHandle> split(const std::shared_ptr<IxNodeHandle>& node);
 
-    void insert_into_parent(std::shared_ptr<IxNodeHandle> old_node, const char *key, std::shared_ptr<IxNodeHandle> new_node, Transaction *transaction);
+    void insert_into_parent(const std::shared_ptr<IxNodeHandle>& old_node, const char *key, const std::shared_ptr<IxNodeHandle>& new_node, std::shared_ptr<Transaction>transaction);
 
     // for delete
-    bool delete_entry(const char *key, Transaction *transaction);
+    bool delete_entry(const char *key, std::shared_ptr<Transaction> transaction);
 
-    bool coalesce_or_redistribute(std::shared_ptr<IxNodeHandle> node, Transaction *transaction = nullptr,
+    bool coalesce_or_redistribute(std::shared_ptr<IxNodeHandle> node, std::shared_ptr<Transaction> transaction = nullptr,
                                   bool *root_is_latched = nullptr);
 
     bool adjust_root(std::shared_ptr<IxNodeHandle> old_root_node);
@@ -220,7 +220,7 @@ public:
     void redistribute(std::shared_ptr<IxNodeHandle> neighbor_node, std::shared_ptr<IxNodeHandle> node, std::shared_ptr<IxNodeHandle> parent, int index);
 
     bool coalesce(std::shared_ptr<IxNodeHandle> *neighbor_node, std::shared_ptr<IxNodeHandle> *node, std::shared_ptr<IxNodeHandle> *parent, int index,
-                  Transaction *transaction, bool *root_is_latched);
+                  std::shared_ptr<Transaction> transaction, bool *root_is_latched);
 
     Iid lower_bound(const char *key);
 

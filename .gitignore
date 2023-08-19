@@ -87,3 +87,4 @@ googlemock/gtest
 /src/parser/yacc.tab.cpp
 /src/parser/yacc.tab.h
 *.csv
+/cmake-build-wsl_profile/

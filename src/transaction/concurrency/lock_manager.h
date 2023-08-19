@@ -53,15 +53,15 @@ public:
 
     bool lock_exclusive_on_record(Transaction* txn, const Rid& rid, int tab_fd);
 
-    bool lock_shared_on_table(Transaction* txn, int tab_fd);
+    bool lock_shared_on_table(const std::shared_ptr<Transaction>& txn, int tab_fd);
 
-    bool lock_exclusive_on_table(Transaction* txn, int tab_fd);
+    bool lock_exclusive_on_table(const std::shared_ptr<Transaction>& txn, int tab_fd);
 
     bool lock_IS_on_table(Transaction* txn, int tab_fd);
 
     bool lock_IX_on_table(Transaction* txn, int tab_fd);
 
-    bool unlock(Transaction* txn, LockDataId lock_data_id);
+    bool unlock(const std::shared_ptr<Transaction>& txn, LockDataId lock_data_id);
 
     bool check_loop(Transaction * txn);
 
