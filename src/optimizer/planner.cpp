@@ -391,7 +391,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
         // int index_no = get_indexNo(x->tab_name, query->conds);
         std::vector<std::string> index_col_names;
         bool index_exist = get_index_cols(x->tab_name, query->conds, index_col_names);
-
+        context->lock_mgr_->lock_exclusive_on_table(context->txn_, sm_manager_->fhs_[x->tab_name]->GetFd());
         if (index_exist == false) {  // 该表没有索引
             index_col_names.clear();
             table_scan_executors =
@@ -411,7 +411,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
         // int index_no = get_indexNo(x->tab_name, query->conds);
         std::vector<std::string> index_col_names;
         bool index_exist = get_index_cols(x->tab_name, query->conds, index_col_names);
-
+        context->lock_mgr_->lock_exclusive_on_table(context->txn_, sm_manager_->fhs_[x->tab_name]->GetFd());
         if (index_exist == false) {  // 该表没有索引
             index_col_names.clear();
             table_scan_executors =
