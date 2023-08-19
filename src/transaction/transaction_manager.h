@@ -54,9 +54,13 @@ public:
      * @param {txn_id_t} txn_id 事务ID
      */
     std::shared_ptr<Transaction> get_transaction(txn_id_t txn_id) {
-        if(txn_id == INVALID_TXN_ID || !TransactionManager::txn_map.count(txn_id)) return nullptr;
+        if(txn_id == INVALID_TXN_ID) return nullptr;
         
         std::unique_lock<std::mutex> lock(latch_);
+        if(!TransactionManager::txn_map.count(txn_id)){
+            lock.unlock();
+            return nullptr;
+        }
         assert(TransactionManager::txn_map.find(txn_id) != TransactionManager::txn_map.end());
         auto res = TransactionManager::txn_map[txn_id];
         lock.unlock();
@@ -64,6 +68,12 @@ public:
         assert(res->get_thread_id() == std::this_thread::get_id());
 
         return res;
+    }
+
+    void delete_transaction(txn_id_t txn_id){
+        std::unique_lock<std::mutex> lock(latch_);
+        TransactionManager::txn_map.erase(txn_id);
+        lock.unlock();
     }
 
     txn_id_t get_next_txn_id(){
