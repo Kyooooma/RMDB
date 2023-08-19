@@ -55,7 +55,7 @@ public:
 
     bool lock_shared_on_table(const std::shared_ptr<Transaction>& txn, int tab_fd);
 
-    bool lock_exclusive_on_table(std::shared_ptr<Transaction> txn, int tab_fd);
+    bool lock_exclusive_on_table(const std::shared_ptr<Transaction>& txn, int tab_fd);
 
     bool lock_IS_on_table(Transaction* txn, int tab_fd);
 

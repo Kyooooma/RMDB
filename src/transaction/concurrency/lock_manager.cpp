@@ -223,9 +223,12 @@ bool LockManager::lock_shared_on_table(const std::shared_ptr<Transaction>&txn, i
         //需要加边(进入等待队列)
         LockRequest lock_request = {txn->get_transaction_id(), LockMode::SHARED};
         for (auto i : request_queue_.request_queue_) {
-            if (i.granted_) {
+            if (i.granted_ && i.lock_mode_ == LockMode::EXLUCSIVE) {
                 // 申请的年轻就滚蛋
-                if (i.txn_id_ < lock_request.txn_id_)  throw TransactionAbortException(lock_request.txn_id_, AbortReason::DEADLOCK_PREVENTION);
+                if (i.txn_id_ < lock_request.txn_id_)  {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                    throw TransactionAbortException(lock_request.txn_id_, AbortReason::DEADLOCK_PREVENTION);
+                }
             }
         }
         request_queue_.request_queue_.push_back(lock_request);
@@ -260,7 +263,7 @@ bool LockManager::lock_shared_on_table(const std::shared_ptr<Transaction>&txn, i
 
         if (flag || txn->get_transaction_id() != mn) {
             lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
@@ -289,7 +292,7 @@ bool LockManager::lock_shared_on_table(const std::shared_ptr<Transaction>&txn, i
  * @param {Transaction*} txn 要申请锁的事务对象指针
  * @param {int} tab_fd 目标表的fd
  */
-bool LockManager::lock_exclusive_on_table(std::shared_ptr<Transaction> txn, int tab_fd) {
+bool LockManager::lock_exclusive_on_table(const std::shared_ptr<Transaction>& txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
 //    std::cout << txn->get_transaction_id() << "申请表级X锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
@@ -344,7 +347,7 @@ bool LockManager::lock_exclusive_on_table(std::shared_ptr<Transaction> txn, int 
         }
         if (flag || mn != txn->get_transaction_id()) {
             lock.unlock();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
         // 表上加X锁
