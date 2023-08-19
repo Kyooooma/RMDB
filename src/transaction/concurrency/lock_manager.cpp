@@ -226,7 +226,6 @@ bool LockManager::lock_shared_on_table(std::shared_ptr<Transaction>txn, int tab_
             if (i.granted_) {
                 // 申请的年轻就滚蛋
                 if (i.txn_id_ < lock_request.txn_id_)  throw TransactionAbortException(lock_request.txn_id_, AbortReason::DEADLOCK_PREVENTION);
-                break;
             }
         }
         request_queue_.request_queue_.push_back(lock_request);
@@ -315,7 +314,6 @@ bool LockManager::lock_exclusive_on_table(std::shared_ptr<Transaction> txn, int 
             if (i.granted_) {
                 // 申请的年轻就滚蛋
                 if (i.txn_id_ < lock_request.txn_id_)  throw TransactionAbortException(lock_request.txn_id_, AbortReason::DEADLOCK_PREVENTION);
-                break;
             }
         }
         request_queue_.request_queue_.push_back(lock_request);
