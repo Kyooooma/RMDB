@@ -381,11 +381,13 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
         plannerRoot = std::make_shared<DDLPlan>(T_DropIndex, x->tab_name, x->col_names, std::vector<ColDef>());
     } else if (auto x = std::dynamic_pointer_cast<ast::InsertStmt>(query->parse)) {
         // insert;
+        context->lock_mgr_->lock_exclusive_on_table(context->txn_.get(), sm_manager_->fhs_[x->tab_name]->GetFd());
         plannerRoot = std::make_shared<DMLPlan>(T_Insert, std::shared_ptr<Plan>(), x->tab_name,
                                                 query->values, std::vector<Condition>(), std::vector<SetClause>());
     } else if (auto x = std::dynamic_pointer_cast<ast::DeleteStmt>(query->parse)) {
         // delete;
         // 生成表扫描方式
+        context->lock_mgr_->lock_exclusive_on_table(context->txn_.get(), sm_manager_->fhs_[x->tab_name]->GetFd());
         std::shared_ptr<Plan> table_scan_executors;
         // 只有一张表，不需要进行物理优化了
         // int index_no = get_indexNo(x->tab_name, query->conds);
@@ -406,6 +408,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
     } else if (auto x = std::dynamic_pointer_cast<ast::UpdateStmt>(query->parse)) {
         // update;
         // 生成表扫描方式
+        context->lock_mgr_->lock_exclusive_on_table(context->txn_.get(), sm_manager_->fhs_[x->tab_name]->GetFd());
         std::shared_ptr<Plan> table_scan_executors;
         // 只有一张表，不需要进行物理优化了
         // int index_no = get_indexNo(x->tab_name, query->conds);

@@ -77,6 +77,7 @@ public:
     }
 
     txn_id_t get_next_txn_id(){
+        std::cout << "txn_id:: " << next_txn_id_ << '\n';
         return next_txn_id_++;
     }
 
