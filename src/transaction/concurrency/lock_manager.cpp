@@ -221,9 +221,7 @@ bool LockManager::lock_shared_on_table(const std::shared_ptr<Transaction>&txn, i
     LockRequest lock_request = {txn->get_transaction_id(), LockMode::SHARED};
     request_queue_.request_queue_.push_back(lock_request);
     txn->set_lock_set(lock_data_id_table_);
-    lock.unlock();
     while (true) {
-        lock.lock();
         //判环
         int flag = 0;
         for (auto i : request_queue_.request_queue_) {
@@ -244,12 +242,10 @@ bool LockManager::lock_shared_on_table(const std::shared_ptr<Transaction>&txn, i
                 break;
             }
         }
-
         if (flag) {
             assert(txn->get_transaction_id() < tt);
 //            std::cout << txn->get_transaction_id() << "等待" << tt << '\n';
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            request_queue_.cv_.wait(lock);
             continue;
         }
 
@@ -294,9 +290,7 @@ bool LockManager::lock_exclusive_on_table(const std::shared_ptr<Transaction>& tx
         request_queue_.request_queue_.push_back(lock_request);
         txn->set_lock_set(lock_data_id_);
     }
-    lock.unlock();
     while (true) {
-        lock.lock();
         //判环
         int flag = 0;
         for (auto i : request_queue_.request_queue_) {
@@ -326,8 +320,7 @@ bool LockManager::lock_exclusive_on_table(const std::shared_ptr<Transaction>& tx
         if (flag || mn != txn->get_transaction_id()) {
             assert(txn->get_transaction_id() < tt);
 //            std::cout << txn->get_transaction_id() << "等待" << tt << '\n';
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            request_queue_.cv_.wait(lock);
             continue;
         }
         // 表上加X锁
@@ -516,6 +509,7 @@ bool LockManager::unlock(const std::shared_ptr<Transaction>&txn, LockDataId lock
     if (now == request_queue.request_queue_.end()) return false;
     request_queue.request_queue_.erase(now);
     if (request_queue.request_queue_.empty()) lock_table_.erase(lock_data_id);
+    request_queue.cv_.notify_all();
 //    std::cout << txn->get_transaction_id() << "释放锁成功  "  << lock_data_id.fd_ << '\n';
     return true;
 }
