@@ -209,18 +209,21 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
     // 获取队列
     LockDataId lock_data_id_table_ = {tab_fd, LockDataType::TABLE};
     auto &request_queue_ = lock_table_[lock_data_id_table_];
+    bool ok = true;
     for (auto i: request_queue_.request_queue_) {
         if (i.txn_id_ == txn->get_transaction_id()) {
             //已有锁
             if (i.granted_) return true;
             //在等待状态
-            assert(0);
+            ok = false;
         }
     }
     //需要加边(进入等待队列)
-    LockRequest lock_request = {txn->get_transaction_id(), LockMode::SHARED};
-    request_queue_.request_queue_.push_back(lock_request);
-    txn->set_lock_set(lock_data_id_table_);
+    if (ok) {
+        LockRequest lock_request = {txn->get_transaction_id(), LockMode::SHARED};
+        request_queue_.request_queue_.push_back(lock_request);
+        txn->set_lock_set(lock_data_id_table_);
+    }
     while (true) {
         //判环
         int flag = 0;
