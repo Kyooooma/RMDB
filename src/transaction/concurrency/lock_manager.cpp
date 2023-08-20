@@ -251,8 +251,8 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
         }
 
         if (flag) {
-//            lock.unlock();
-//            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
             throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
 
@@ -326,8 +326,8 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
             }
         }
         if (flag) {
-//            lock.unlock();
-//            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
             throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
         // 表上加X锁
@@ -397,6 +397,7 @@ bool LockManager::lock_IS_on_table(Transaction *txn, int tab_fd) {
             }
         }
         if (flag) {
+            std::this_thread::sleep_for(std::chrono::microseconds (1000));
             throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
 
@@ -472,6 +473,7 @@ bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
             }
         }
         if (flag) {
+            std::this_thread::sleep_for(std::chrono::microseconds (1000));
             throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
 
