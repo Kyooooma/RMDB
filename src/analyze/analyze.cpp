@@ -15,7 +15,7 @@ See the Mulan PSL v2 for more details. */
  * @param {shared_ptr<ast::TreeNode>} parse parser生成的结果集
  * @return {shared_ptr<Query>} Query 
  */
-std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse, Context *context_)
+std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
 {
     std::shared_ptr<Query> query = std::make_shared<Query>();
     if (auto x = std::dynamic_pointer_cast<ast::SelectStmt>(parse))
@@ -27,7 +27,6 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
             if(!sm_manager_->db_.is_table(table)){
                 throw TableNotFoundError(table);
             }
-            context_->lock_mgr_->lock_shared_on_table(context_->txn_.get(), sm_manager_->fhs_[table]->GetFd());
         }
 
         // 处理target list，再target list中添加上表名，例如 a.id
@@ -56,19 +55,16 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
         check_clause(query->tables, query->conds);
     } else if (auto x = std::dynamic_pointer_cast<ast::UpdateStmt>(parse)) {
         //处理set
-        context_->lock_mgr_->lock_exclusive_on_table(context_->txn_.get(), sm_manager_->fhs_[x->tab_name]->GetFd());
         set_clause(x->tab_name, x->set_clauses, query->set_clauses);
         //处理where条件
         get_clause(x->conds, query->conds);
         check_clause({x->tab_name}, query->conds);
     } else if (auto x = std::dynamic_pointer_cast<ast::DeleteStmt>(parse)) {
         //处理where条件
-        context_->lock_mgr_->lock_exclusive_on_table(context_->txn_.get(), sm_manager_->fhs_[x->tab_name]->GetFd());
         get_clause(x->conds, query->conds);
         check_clause({x->tab_name}, query->conds);
     } else if (auto x = std::dynamic_pointer_cast<ast::InsertStmt>(parse)) {
         // 处理insert 的values值
-        context_->lock_mgr_->lock_exclusive_on_table(context_->txn_.get(), sm_manager_->fhs_[x->tab_name]->GetFd());
         for (auto &sv_val : x->vals) {
             query->values.push_back(convert_sv_value(sv_val));
         }

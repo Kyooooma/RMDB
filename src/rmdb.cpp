@@ -177,7 +177,7 @@ void *client_handler(void *sock_fd) {
             if (yyparse() == 0) {
                 if (ast::parse_tree != nullptr) {
                     // analyze and rewrite
-                    std::shared_ptr<Query> query = analyze->do_analyze(ast::parse_tree, context);
+                    std::shared_ptr<Query> query = analyze->do_analyze(ast::parse_tree);
                     yy_delete_buffer(buf);
                     finish_analyze = true;
                     pthread_mutex_unlock(buffer_mutex);
