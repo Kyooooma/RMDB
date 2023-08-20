@@ -214,7 +214,7 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
             //已有锁
             if (i.granted_) return true;
             //在等待状态
-            assert(1);
+            assert(0);
         }
     }
     //需要加边(进入等待队列)
@@ -233,6 +233,7 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
                 if (request.txn_id_ < txn->get_transaction_id())  {
                     throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
                 }
+                break;
             }
         }
         if (flag) {
@@ -280,21 +281,20 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
     while (true) {
         //判环
         int flag = 0;
-        txn_id_t mn = -1;
         auto &now = *request_queue_.request_queue_.begin();
         for (auto &request: request_queue_.request_queue_) {
             if (request.txn_id_ == txn->get_transaction_id()) now = request;
-            if (mn == -1) mn = request.txn_id_;
-            else mn = std::min(mn, request.txn_id_);
             if (request.txn_id_ != txn->get_transaction_id()) {
                 //有人持有锁
                 if (request.granted_) {
                     flag = 1;
-                    if (request.txn_id_ < txn->get_transaction_id()) throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
+                    if (request.txn_id_ < txn->get_transaction_id()) {
+                        throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
+                    }
                 }
             }
         }
-        if (flag || mn != txn->get_transaction_id()) {
+        if (flag) {
 //            std::cout << txn->get_transaction_id() << "等待" << tt << '\n';
             request_queue_.cv_.wait(lock);
             continue;
