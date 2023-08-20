@@ -234,6 +234,7 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
             if (request.lock_mode_ == LockMode::EXLUCSIVE && request.granted_) {
                 flag = 1;
                 if (request.txn_id_ < txn->get_transaction_id())  {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
                 }
                 break;
@@ -292,6 +293,7 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
                 if (request.granted_) {
                     flag = 1;
                     if (request.txn_id_ < txn->get_transaction_id()) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
                         throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
                     }
                 }
