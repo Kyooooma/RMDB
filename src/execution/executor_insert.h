@@ -36,7 +36,6 @@ public:
         }
         fh_ = sm_manager_->fhs_.at(tab_name).get();
         context_ = context;
-        context_->lock_mgr_->lock_exclusive_on_table(context->txn_.get(), sm_manager_->fhs_[tab_name_]->GetFd());
     };
 
     std::string getType() override { return "InsertExecutor"; };

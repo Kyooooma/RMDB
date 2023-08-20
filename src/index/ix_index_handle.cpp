@@ -270,10 +270,10 @@ bool IxIndexHandle::get_value(const char *key, std::vector<Rid> *result, const s
         std::vector<Rid> ans(1);
         ans[0] = (*lt);
         *result = ans;
-        buffer_pool_manager_->unpin_page(leaf->get_page_id(), true);
+        buffer_pool_manager_->unpin_page(leaf->get_page_id(), false);
         return true;
     }
-    buffer_pool_manager_->unpin_page(leaf->get_page_id(), true);
+    buffer_pool_manager_->unpin_page(leaf->get_page_id(), false);
     return false;
 }
 
