@@ -32,9 +32,9 @@ public:
     
     ~TransactionManager() = default;
 
-    Transaction* begin(Transaction* txn, LogManager* log_manager);
+    Transaction* begin(Transaction* txn, LogManager* log_manager, Context* context_);
 
-    void commit(Transaction* txn, LogManager* log_manager);
+    void commit(Transaction* txn, LogManager* log_manager, Context* context_);
 
     void abort(Context* context, LogManager* log_manager);
 

@@ -68,7 +68,7 @@ void SetTransaction(txn_id_t *txn_id, Context *context) {
         if(context->txn_ != nullptr){
             txn_manager->delete_transaction(context->txn_->get_transaction_id());
         }
-        context->txn_ = txn_manager->begin(nullptr, context->log_mgr_);
+        context->txn_ = txn_manager->begin(nullptr, context->log_mgr_, context);
         *txn_id = context->txn_->get_transaction_id();
         context->txn_->set_txn_mode(false);
     }
@@ -164,7 +164,7 @@ void *client_handler(void *sock_fd) {
                 break;
             }
             if (context->txn_ != nullptr && !context->txn_->get_txn_mode()) {
-                txn_manager->commit(context->txn_, context->log_mgr_);
+                txn_manager->commit(context->txn_, context->log_mgr_, context);
             }
             continue;
         }
@@ -239,7 +239,7 @@ void *client_handler(void *sock_fd) {
 
         //事务处理部分
         if (context->txn_ != nullptr && !context->txn_->get_txn_mode()) {
-            txn_manager->commit(context->txn_, context->log_mgr_);
+            txn_manager->commit(context->txn_, context->log_mgr_, context);
         }
     }
     if(context->txn_ != nullptr){

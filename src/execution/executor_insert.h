@@ -64,7 +64,11 @@ public:
         //更新日志-插入
         auto *logRecord = new InsertLogRecord(context_->txn_->get_transaction_id(), rec, rid_,tab_name_);
         logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
-        context_->log_mgr_->add_log_to_buffer(logRecord);
+        if(context_->output_ellipsis_){
+            context_->log_mgr_->add_log_to_buffer_load(logRecord);
+        }else{
+            context_->log_mgr_->add_log_to_buffer(logRecord);
+        }
         context_->txn_->set_prev_lsn(logRecord->lsn_);
         delete logRecord;
         // 更新索引
@@ -82,7 +86,11 @@ public:
             //更新索引插入日志
             auto *index_log = new IndexInsertLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, index.col_tot_len);
             index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->log_mgr_->add_log_to_buffer(index_log);
+            if(context_->output_ellipsis_){
+                context_->log_mgr_->add_log_to_buffer_load(index_log);
+            }else{
+                context_->log_mgr_->add_log_to_buffer(index_log);
+            }
             context_->txn_->set_prev_lsn(index_log->lsn_);
             delete index_log;
             auto result = ih->insert_entry(key, rid_, context_->txn_);
@@ -109,7 +117,11 @@ public:
                 //更新索引删除日志
                 auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, index.col_tot_len);
                 index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-                context_->log_mgr_->add_log_to_buffer(index_log);
+                if(context_->output_ellipsis_){
+                    context_->log_mgr_->add_log_to_buffer_load(index_log);
+                }else{
+                    context_->log_mgr_->add_log_to_buffer(index_log);
+                }
                 context_->txn_->set_prev_lsn(index_log->lsn_);
                 delete index_log;
                 ih->delete_entry(key, context_->txn_);
@@ -118,7 +130,11 @@ public:
             //更新日志
             auto *logRecord_ = new DeleteLogRecord(context_->txn_->get_transaction_id(), rec, rid_,tab_name_);
             logRecord_->prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->log_mgr_->add_log_to_buffer(logRecord_);
+            if(context_->output_ellipsis_){
+                context_->log_mgr_->add_log_to_buffer_load(logRecord_);
+            }else{
+                context_->log_mgr_->add_log_to_buffer(logRecord_);
+            }
             context_->txn_->set_prev_lsn(logRecord_->lsn_);
             delete logRecord_;
             //实际删除
