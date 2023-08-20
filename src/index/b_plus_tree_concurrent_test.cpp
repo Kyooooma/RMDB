@@ -244,7 +244,7 @@ int getThreadId() {
 void InsertHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
                   __attribute__((unused)) uint64_t thread_itr = 0) {
     // create transaction
-    Transaction *transaction = new Transaction(0);  // 注意，每个线程都有一个事务；不能从上层传入一个共用的事务
+    auto *transaction = new Transaction(0);  // 注意，每个线程都有一个事务；不能从上层传入一个共用的事务
 
     const char *index_key;
     for (auto key : keys) {
@@ -258,7 +258,7 @@ void InsertHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        tree->get_value(index_key, &rids, transaction);  // 调用GetValue
+        tree->get_value(index_key, &rids);  // 调用GetValue
         EXPECT_EQ(rids.size(), 1);
 
         int64_t value = key & 0xFFFFFFFF;
@@ -272,7 +272,7 @@ void InsertHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
 void DeleteHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
                   __attribute__((unused)) uint64_t thread_itr = 0) {
     // create transaction
-    Transaction *transaction = new Transaction(0);  // 注意，每个线程都有一个事务；不能从上层传入一个共用的事务
+    auto *transaction = new Transaction(0);  // 注意，每个线程都有一个事务；不能从上层传入一个共用的事务
 
     const char *index_key;
     for (auto key : keys) {

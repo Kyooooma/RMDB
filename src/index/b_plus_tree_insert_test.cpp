@@ -253,7 +253,7 @@ TEST_F(BPlusTreeTests, InsertTest) {
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        ih_->get_value(index_key, &rids, txn_.get());  // 调用get_value
+        ih_->get_value(index_key, &rids);  // 调用get_value
         EXPECT_EQ(rids.size(), 1);
 
         int32_t value = key & 0xFFFFFFFF;
@@ -264,7 +264,7 @@ TEST_F(BPlusTreeTests, InsertTest) {
     for (int key = scale + 1; key <= scale + 100; key++) {
         rids.clear();
         index_key = (const char *)&key;
-        ih_->get_value(index_key, &rids, txn_.get());  // 调用get_value
+        ih_->get_value(index_key, &rids);  // 调用get_value
         EXPECT_EQ(rids.size(), 0);
     }
 }
@@ -305,7 +305,7 @@ TEST_F(BPlusTreeTests, LargeScaleTest) {
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        ih_->get_value(index_key, &rids, txn_.get());  // 调用get_value
+        ih_->get_value(index_key, &rids);  // 调用get_value
         EXPECT_EQ(rids.size(), 1);
 
         int64_t value = key & 0xFFFFFFFF;

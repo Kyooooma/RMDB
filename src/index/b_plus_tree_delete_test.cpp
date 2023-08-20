@@ -357,7 +357,7 @@ TEST_F(BPlusTreeTests, InsertAndDeleteTest1) {
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        ih_->get_value(index_key, &rids, txn_.get());  // 调用get_value
+        ih_->get_value(index_key, &rids);  // 调用get_value
         EXPECT_EQ(rids.size(), 1);
 
         int64_t value = key & 0xFFFFFFFF;
@@ -446,7 +446,7 @@ TEST_F(BPlusTreeTests, InsertAndDeleteTest2) {
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        ih_->get_value(index_key, &rids, txn_.get());  // 调用get_value
+        ih_->get_value(index_key, &rids);  // 调用get_value
         EXPECT_EQ(rids.size(), 1);
 
         int64_t value = key & 0xFFFFFFFF;

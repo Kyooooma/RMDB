@@ -41,7 +41,7 @@ public:
         len_ = cols_.back().offset + cols_.back().len;
 
         context_ = context;
-        context_->lock_mgr_->lock_shared_on_table(context_->txn_.get(), sm_manager_->fhs_[tab_name_]->GetFd());
+        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
 
         fed_conds_ = conds_;
     }

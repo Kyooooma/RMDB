@@ -24,7 +24,7 @@ static int const_offset = -1;
 class Context {
 public:
     Context (LockManager *lock_mgr, LogManager *log_mgr,
-             std::shared_ptr<Transaction> txn, char *data_send = nullptr, int *offset = &const_offset, bool output_ellipsis = false)
+             Transaction* txn, char *data_send = nullptr, int *offset = &const_offset, bool output_ellipsis = false)
         : lock_mgr_(lock_mgr), log_mgr_(log_mgr), txn_(std::move(txn)),
           data_send_(data_send), offset_(offset), output_ellipsis_(output_ellipsis) {
         ellipsis_ = false;
@@ -37,7 +37,7 @@ public:
     // TransactionManager *txn_mgr_;
     LockManager *lock_mgr_;
     LogManager *log_mgr_;
-    std::shared_ptr<Transaction> txn_;
+    Transaction* txn_;
     char *data_send_;
     int *offset_;
     bool ellipsis_;

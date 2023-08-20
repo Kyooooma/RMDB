@@ -200,7 +200,7 @@ public:
             //更新记录
             fh_->update_record(rid, rec->data, context_);
             //更新事务
-            std::shared_ptr<WriteRecord> wr = std::make_shared<WriteRecord>(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
+            auto wr = WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
             context_->txn_->append_write_record(wr);
         }
 
@@ -208,11 +208,11 @@ public:
             //插入失败
             while (upd_cnt--) {
                 auto last = context_->txn_->get_last_write_record();
-                auto type = last->GetWriteType();
+                auto type = last.GetWriteType();
                 assert(type == WType::UPDATE_TUPLE);
-                auto rid_ = last->GetRid();
-                auto tab_name = last->GetTableName();
-                auto rec_ = last->GetRecord();
+                auto rid_ = last.GetRid();
+                auto tab_name = last.GetTableName();
+                auto rec_ = last.GetRecord();
                 auto now_rec = fh_->get_record(rid_, context_);
                 delete_index(now_rec.get(), rid_);
                 insert_index(&rec_, rid_);
