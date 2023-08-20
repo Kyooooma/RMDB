@@ -21,14 +21,16 @@ See the Mulan PSL v2 for more details. */
 class Transaction {
    public:
     std::unique_ptr<std::vector<WriteRecord>> write_set_;  // 事务包含的所有写操作
-    std::unique_ptr<std::unordered_set<LockDataId>> lock_set_;  // 事务申请的所有锁
+//    std::unique_ptr<std::unordered_set<LockDataId>> lock_set_;  // 事务申请的所有锁
+    std::unique_ptr<std::unordered_set<int>> lock_table_;
 
     explicit Transaction(txn_id_t txn_id, IsolationLevel isolation_level = IsolationLevel::SERIALIZABLE)
         : state_(TransactionState::DEFAULT), isolation_level_(isolation_level), txn_id_(txn_id) {
         write_set_ = std::make_unique<std::vector<WriteRecord>>();
-        lock_set_ = std::make_unique<std::unordered_set<LockDataId>>();
-        index_latch_page_set_ = std::make_unique<std::deque<Page *>>();
-        index_deleted_page_set_ = std::make_unique<std::deque<Page*>>();
+//        lock_set_ = std::make_unique<std::unordered_set<LockDataId>>();
+        lock_table_ = std::make_unique<std::unordered_set<int>>();
+//        index_latch_page_set_ = std::make_unique<std::deque<Page *>>();
+//        index_deleted_page_set_ = std::make_unique<std::deque<Page*>>();
         prev_lsn_ = INVALID_LSN;
         thread_id_ = std::this_thread::get_id();
     }
@@ -61,20 +63,21 @@ class Transaction {
     inline WriteRecord get_last_write_record() const { return write_set_->back(); }
     inline void clear(){
         std::unique_ptr<std::vector<WriteRecord>>().swap(write_set_);
-        lock_set_->clear();
-        index_latch_page_set_->clear();
-        index_deleted_page_set_->clear();
+//        lock_set_->clear();
+//        index_latch_page_set_->clear();
+//        index_deleted_page_set_->clear();
+        lock_table_->clear();
     }
 
 //    inline std::shared_ptr<std::deque<Page*>> get_index_deleted_page_set() { return index_deleted_page_set_; }
-    inline void append_index_deleted_page(Page* page) { index_deleted_page_set_->push_back(page); }
+//    inline void append_index_deleted_page(Page* page) { index_deleted_page_set_->push_back(page); }
 
 //    inline std::shared_ptr<std::deque<Page*>> get_index_latch_page_set() { return index_latch_page_set_; }
-    inline void append_index_latch_page_set(Page* page) { index_latch_page_set_->push_back(page); }
+//    inline void append_index_latch_page_set(Page* page) { index_latch_page_set_->push_back(page); }
 
 //    inline std::shared_ptr<std::unordered_set<LockDataId>> get_lock_set() { return lock_set_; }
-    inline void set_lock_set(LockDataId lockDataId) { lock_set_->insert(lockDataId); }
-    inline bool erase_lock_set(LockDataId lockDataId) { return lock_set_->erase(lockDataId); }
+//    inline void set_lock_set(LockDataId lockDataId) { lock_set_->insert(lockDataId); }
+//    inline bool erase_lock_set(LockDataId lockDataId) { return lock_set_->erase(lockDataId); }
 
    private:
     bool txn_mode_{};                   // 用于标识当前事务为显式事务还是单条SQL语句的隐式事务
@@ -85,6 +88,6 @@ class Transaction {
     txn_id_t txn_id_;                 // 事务的ID，唯一标识符
     timestamp_t start_ts_{};            // 事务的开始时间戳
 
-    std::unique_ptr<std::deque<Page*>> index_latch_page_set_;          // 维护事务执行过程中加锁的索引页面
-    std::unique_ptr<std::deque<Page*>> index_deleted_page_set_;    // 维护事务执行过程中删除的索引页面
+//    std::unique_ptr<std::deque<Page*>> index_latch_page_set_;          // 维护事务执行过程中加锁的索引页面
+//    std::unique_ptr<std::deque<Page*>> index_deleted_page_set_;    // 维护事务执行过程中删除的索引页面
 };

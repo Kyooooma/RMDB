@@ -42,8 +42,16 @@ class LockManager {
         GroupLockMode group_lock_mode_ = GroupLockMode::NON_LOCK;   // 加锁队列的锁模式
     };
 
+    class LockTable{
+    public:
+        LockMode mode;// 加锁类型
+        int cnt;// 加锁次数
+    };
+
 public:
-    LockManager() {}
+    LockManager() {
+        my_lock_table_ = std::unordered_map<int, LockTable>();
+    }
 
     ~LockManager() {}
 
@@ -59,11 +67,12 @@ public:
 
     bool lock_IX_on_table(Transaction* txn, int tab_fd);
 
-    bool unlock(Transaction* txn, LockDataId lock_data_id);
+    bool unlock(Transaction* txn);
 
     bool check_loop(Transaction * txn);
 
 private:
     std::mutex latch_;      // 用于锁表的并发
-    std::unordered_map<LockDataId, LockRequestQueue> lock_table_;   // 全局锁表
+//    std::unordered_map<LockDataId, LockRequestQueue> lock_table_;   // 全局锁表
+    std::unordered_map<int, LockTable> my_lock_table_;
 };

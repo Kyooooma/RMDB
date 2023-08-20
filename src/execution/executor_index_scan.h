@@ -88,7 +88,7 @@ public:
 
     void beginTuple() override {
         std::string ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index_col_names_);
-        std::cout << "index_scan::" << ix_name << "\n\n";
+//        std::cout << "index_scan::" << ix_name << "\n\n";
         char *key = new char[index_meta_.col_tot_len];
         Value min_int, min_float, min_datetime;
         {
@@ -201,11 +201,11 @@ public:
             }
             offset += col.len;
         }
-        std::cout << index_cnt << '\n';
+//        std::cout << index_cnt << '\n';
         Iid start = ih->leaf_begin();
         if(flag) start = ih->upper_bound(key);
         else start = ih->lower_bound(key);
-        std::cout << start.page_no << " " << start.slot_no << "\n";
+//        std::cout << start.page_no << " " << start.slot_no << "\n";
         Iid end = ih->leaf_end();
         scan_ = std::make_unique<IxScan>(ih, start, end, sm_manager_->get_bpm());
         while(!is_end()){

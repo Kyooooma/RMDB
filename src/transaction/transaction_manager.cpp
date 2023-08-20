@@ -57,9 +57,7 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager, Conte
     // 5. 更新事务状态
     //释放所有锁
     //释放事务相关资源，eg.锁集
-    for(auto i : *txn->lock_set_){
-        lock_manager_->unlock(txn, i);
-    }
+    lock_manager_->unlock(txn);
     txn->clear();
     // 4. 把事务日志刷入磁盘中
     auto *log = new CommitLogRecord(txn->get_transaction_id());
@@ -207,9 +205,7 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
         }
     }
     //释放所有锁
-    for(auto i : *txn->lock_set_){
-        lock_manager_->unlock(txn, i);
-    }
+    lock_manager_->unlock(txn);
     //释放事务相关资源，eg.锁集
     txn->clear();
     // 4. 把事务日志刷入磁盘中
