@@ -243,6 +243,8 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
 
         // 表上加S锁
         now.granted_ = true;
+//        std::cout << "111\n";
+        return true;
     }
 }
 
@@ -300,6 +302,8 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
         // 表上加X锁
         now.lock_mode_ = LockMode::EXLUCSIVE;
         now.granted_ = true;
+//        std::cout << "222\n";
+        return true;
     }
 }
 
