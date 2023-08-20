@@ -57,7 +57,7 @@ public:
     }
 
     void nextTuple() override {
-        assert(!is_end());
+        assert(!prev_->is_end());
         prev_->nextTuple();
     }
 
