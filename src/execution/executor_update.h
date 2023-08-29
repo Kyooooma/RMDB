@@ -154,6 +154,33 @@ public:
                         throw IncompatibleTypeError(coltype2str(col.type), coltype2str(value.type));
                     }
                 }
+                char *rec_buf = rec->data + col.offset;
+                if (col.type == TYPE_INT) {
+                    auto old_val = *(int *) rec_buf;
+                    if(i.op == SetOp::OP_ADD){
+                        value.int_val += old_val;
+                    }else if(i.op == SetOp::OP_SUB){
+                        value.int_val -= old_val;
+                    }
+                } else if (col.type == TYPE_FLOAT) {
+                    auto old_val = *(double *) rec_buf;
+                    if(i.op == SetOp::OP_ADD){
+                        value.float_val += old_val;
+                    }else if(i.op == SetOp::OP_SUB){
+                        value.float_val -= old_val;
+                    }
+                } else if (col.type == TYPE_STRING) {
+                    //do nothing
+                } else if (col.type == TYPE_BIGINT) {
+                    auto old_val = *(long long *) rec_buf;
+                    if(i.op == SetOp::OP_ADD){
+                        value.bigint_val += old_val;
+                    }else if(i.op == SetOp::OP_SUB){
+                        value.bigint_val -= old_val;
+                    }
+                } else if (col.type == TYPE_DATETIME) {
+                    //do nothing
+                }
                 value.init_raw(col.len);
                 //更新记录数据
                 memcpy(rec->data + col.offset, value.raw->data, col.len);

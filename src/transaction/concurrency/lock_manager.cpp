@@ -19,8 +19,8 @@ See the Mulan PSL v2 for more details. */
  */
 bool LockManager::lock_shared_on_record(Transaction *txn, const Rid &rid, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
-    std::cout << txn->get_transaction_id() << "申请行级S锁" << rid.page_no << " " << rid.slot_no << " " << tab_fd
-              << '\n';
+//    std::cout << txn->get_transaction_id() << "申请行级S锁" << rid.page_no << " " << rid.slot_no << " " << tab_fd
+//              << '\n';
     std::unique_lock<std::mutex> lock(latch_);
     // 获取队列
     LockDataId lock_data_id_ = {tab_fd, rid, LockDataType::RECORD};
@@ -28,7 +28,7 @@ bool LockManager::lock_shared_on_record(Transaction *txn, const Rid &rid, int ta
     bool ok = true;
     for (auto i: request_queue_.request_queue_) {
         if (i.txn_id_ == txn->get_transaction_id()) {
-            std::cout << i.txn_id_ << " " << i.lock_mode_ << " " << i.granted_ << "\n";
+//            std::cout << i.txn_id_ << " " << i.lock_mode_ << " " << i.granted_ << "\n";
             //已有锁
             if (i.granted_) return true;
             //在等待状态
@@ -105,8 +105,8 @@ bool LockManager::lock_shared_on_record(Transaction *txn, const Rid &rid, int ta
  */
 bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
-    std::cout << txn->get_transaction_id() << "申请行级X锁" << rid.page_no << " " << rid.slot_no << " " << tab_fd
-              << '\n';
+//    std::cout << txn->get_transaction_id() << "申请行级X锁" << rid.page_no << " " << rid.slot_no << " " << tab_fd
+//              << '\n';
     std::unique_lock<std::mutex> lock(latch_);
     // 获取队列
     LockDataId lock_data_id_ = {tab_fd, rid, LockDataType::RECORD};
@@ -204,7 +204,7 @@ bool LockManager::lock_exclusive_on_record(Transaction *txn, const Rid &rid, int
  */
 bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
-    std::cout << txn->get_transaction_id() << "申请表级S锁" << " " << tab_fd << '\n';
+//    std::cout << txn->get_transaction_id() << "申请表级S锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
     // 获取队列
     LockDataId lock_data_id_table_ = {tab_fd, LockDataType::TABLE};
@@ -283,7 +283,7 @@ bool LockManager::lock_shared_on_table(Transaction *txn, int tab_fd) {
  */
 bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
-    std::cout << txn->get_transaction_id() << "申请表级X锁" << " " << tab_fd << '\n';
+//    std::cout << txn->get_transaction_id() << "申请表级X锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
     // 获取队列
     LockDataId lock_data_id_ = {tab_fd, LockDataType::TABLE};
@@ -356,7 +356,7 @@ bool LockManager::lock_exclusive_on_table(Transaction *txn, int tab_fd) {
 bool LockManager::lock_IS_on_table(Transaction *txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
 
-    std::cout << txn->get_transaction_id() << "申请表级IS锁" << " " << tab_fd << '\n';
+//    std::cout << txn->get_transaction_id() << "申请表级IS锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
     // 获取队列
     LockDataId lock_data_id_table_ = {tab_fd, LockDataType::TABLE};
@@ -425,7 +425,7 @@ bool LockManager::lock_IS_on_table(Transaction *txn, int tab_fd) {
  */
 bool LockManager::lock_IX_on_table(Transaction *txn, int tab_fd) {
     txn->set_state(TransactionState::GROWING);
-    std::cout << txn->get_transaction_id() << "申请表级IX锁" << " " << tab_fd << '\n';
+//    std::cout << txn->get_transaction_id() << "申请表级IX锁" << " " << tab_fd << '\n';
     std::unique_lock<std::mutex> lock(latch_);
     // 获取队列
     LockDataId lock_data_id_ = {tab_fd, LockDataType::TABLE};
@@ -543,7 +543,7 @@ bool LockManager::unlock(Transaction *txn, LockDataId lock_data_id) {
 }
 
 bool LockManager::check_loop(Transaction *txn) {
-    std::cout << "start_check\n";
+//    std::cout << "start_check\n";
     int tot = 0;
     std::unordered_map<txn_id_t, int> mp;
     std::unordered_map<int, txn_id_t> rmp;
@@ -570,7 +570,7 @@ bool LockManager::check_loop(Transaction *txn) {
         for (auto u: un_granted) {
             for (auto v: granted) {
                 e[u].push_back(v);
-                std::cout << u << " -> " << v << "\n";
+//                std::cout << u << " -> " << v << "\n";
                 du[v]++;
             }
         }

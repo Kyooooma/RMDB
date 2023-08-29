@@ -107,6 +107,10 @@ namespace ast {
                 std::cout << "SHOW_INDEX\n";
                 print_val(x->tab_name, offset);
                 // print_val(x->col_name, offset);
+            } else if (auto x = std::dynamic_pointer_cast<LoadRecord>(node)) {
+                std::cout << "LOAD RECORD\n";
+                print_val(x->file_name, offset);
+                print_val(x->tab_name, offset);
             } else if (auto x = std::dynamic_pointer_cast<ColDef>(node)) {
                 std::cout << "COL_DEF\n";
                 print_val(x->col_name, offset);
@@ -135,7 +139,10 @@ namespace ast {
                 std::cout << "STRING_LIT\n";
                 print_val(x->val, offset);
             } else if (auto x = std::dynamic_pointer_cast<SetClause>(node)) {
-                std::cout << "SET_CLAUSE\n";
+                std::cout << "SET_CLAUSE ";
+                if(x->setOp == SvSetOp::SV_OP_SET) std::cout << "SET\n";
+                else if(x->setOp == SvSetOp::SV_OP_ADD) std::cout << "ADD\n";
+                else if(x->setOp == SvSetOp::SV_OP_SUB) std::cout << "SUB\n";
                 print_val(x->col_name, offset);
                 print_node(x->val, offset);
             } else if (auto x = std::dynamic_pointer_cast<BinaryExpr>(node)) {

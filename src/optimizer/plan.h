@@ -27,6 +27,7 @@ typedef enum PlanTag{
     T_CreateTable,
     T_DropTable,
     T_CreateIndex,
+    T_LoadRecord,
     T_ShowIndex,
     T_DropIndex,
     T_Insert,
@@ -173,6 +174,21 @@ class DDLPlan : public Plan
         std::string tab_name_;
         std::vector<std::string> tab_col_names_;
         std::vector<ColDef> cols_;
+};
+
+// load语句
+class LOADPlan : public Plan
+{
+public:
+    LOADPlan(PlanTag tag, std::string file_name, std::string tab_name)
+    {
+        Plan::tag = tag;
+        file_name_ = std::move(file_name);
+        tab_name_ = std::move(tab_name);
+    }
+    ~LOADPlan(){}
+    std::string file_name_;
+    std::string tab_name_;
 };
 
 // help; show tables; desc tables; begin; abort; commit; rollback语句对应的plan

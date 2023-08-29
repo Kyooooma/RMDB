@@ -41,7 +41,7 @@ value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
 value_datetime '{digit}{4}-{digit}{2}-{digit}{2}{white_space}{digit}{2}:{digit}{2}:{digit}{2}'
 value_string '[^']*'
-single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
+single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."|"+"|"-"
 
 %x STATE_COMMENT
 
@@ -69,6 +69,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "DESC" { return DESC; }
 "INSERT" { return INSERT; }
 "INTO" { return INTO; }
+"LOAD" { return LOAD; }
 "VALUES" { return VALUES; }
 "DELETE" { return DELETE; }
 "FROM" { return FROM; }

@@ -16,41 +16,44 @@ See the Mulan PSL v2 for more details. */
 
 int main() {
     std::vector<std::string> sqls = {
-        "show tables;",
-        "desc tb;",
-        "create table tb (a int, b float, c char(4));",
-        "drop table tb;",
-        "create table tb (a bigint, b float, c char(4));",
-        "INSERT INTO t VALUES(372036854775807,233421);",
-        "create table t(id int , time datetime);",
-        "insert into t values(1, '2023-05-18 09:12:19');",
-        "insert into t values(2, '2023-05-32 12:34:32');",
-        "INSERT INTO t VALUES(-922337203685477580,124332);",
-        "INSERT INTO t VALUES(9223372036854775809,12345);",
-        "create index tb(a);",
-        "create index tb(a, b, c);",
-        "drop index tb(a, b, c);",
-        "drop index tb(b);",
-        "insert into tb values (1, 3.14, 'pi');",
-        "delete from tb where a = 1;",
-        "update tb set a = 1, b = 2.2, c = 'xyz' where x = 2 and y < 1.1 and z > 'abc';",
-        "select * from tb;",
-        "select * from tb where x <> 2 and y >= 3. and z <= '123' and b < tb.a;",
-        "select x.a, y.b from x, y where x.a = y.b and c = d;",
-        "select x.a, y.b from x join y where x.a = y.b and c = d;",
-        "select SUM(id) as sum_id from aggregate;",
-        "exit;",
-        "help;",
-        "show index from warehouse;",
-        "drop index warehouse (id,name);",
+        "update t1 set a = a - 10;",
+        "update t1 set a = a + 10;",
+        "update t1 set a =a-100;",
+        "update t1 set a =a+1000;",
+//        "select t.id,t_name,d_name from t join d where t.id = d.id;",
+//        "desc tb;",
+//        "create table tb (a int, b float, c char(4));",
+//        "drop table tb;",
+//        "create table tb (a bigint, b float, c char(4));",
+//        "INSERT INTO t VALUES(372036854775807,233421);",
+//        "create table t(id int , time datetime);",
+//        "insert into t values(1, '2023-05-18 09:12:19');",
+//        "insert into t values(2, '2023-05-32 12:34:32');",
+//        "INSERT INTO t VALUES(-922337203685477580,124332);",
+//        "INSERT INTO t VALUES(9223372036854775809,12345);",
+//        "create index tb(a);",
+//        "create index tb(a, b, c);",
+//        "drop index tb(a, b, c);",
+//        "drop index tb(b);",
+//        "insert into tb values (1, 3.14, 'pi');",
+//        "delete from tb where a = 1;",
+//        "update tb set a = 1, b = 2.2, c = 'xyz' where x = 2 and y < 1.1 and z > 'abc';",
+//        "select * from tb;",
+//        "select * from tb where x <> 2 and y >= 3. and z <= '123' and b < tb.a;",
+//        "select x.a, y.b from x, y where x.a = y.b and c = d;",
+//        "select x.a, y.b from x join y where x.a = y.b and c = d;",
+//        "select SUM(id) as sum_id from aggregate;",
+//        "exit;",
+//        "help;",
+//        "show index from warehouse;",
+//        "drop index warehouse (id,name);",
         ""
     };
     for (auto &sql : sqls) {
         std::cout << sql << std::endl;
         try{
             YY_BUFFER_STATE buf = yy_scan_string(sql.c_str());
-            yyparse();
-//            assert(yyparse() == 0);
+            assert(yyparse() == 0);
             if (ast::parse_tree != nullptr) {
                 ast::TreePrinter::print(ast::parse_tree);
                 yy_delete_buffer(buf);

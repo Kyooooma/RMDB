@@ -139,6 +139,20 @@ void Analyze::set_clause(const std::string& tab_name, const std::vector<std::sha
     conds.clear();
     for (auto &expr : sv_conds) {
         SetClause cond;
+        switch (expr->setOp) {
+            case ast::SvSetOp::SV_OP_SET:{
+                cond.op = OP_SET;
+                break;
+            }
+            case ast::SvSetOp::SV_OP_ADD:{
+                cond.op = OP_ADD;
+                break;
+            }
+            case ast::SvSetOp::SV_OP_SUB:{
+                cond.op = OP_SUB;
+                break;
+            }
+        }
         cond.lhs = {.tab_name = tab_name, .col_name = expr->col_name};
         cond.rhs = convert_sv_value(expr->val);
         conds.push_back(cond);

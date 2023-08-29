@@ -534,6 +534,7 @@ public:
     LogManager(DiskManager* disk_manager) { disk_manager_ = disk_manager; }
     
     lsn_t add_log_to_buffer(LogRecord* log_record);
+    lsn_t add_log_to_buffer_load(LogRecord* logRecord);
     void flush_log_to_disk();
 
     LogBuffer* get_log_buffer() { return &log_buffer_; }

@@ -22,11 +22,11 @@ static int const_offset = -1;
 class Context {
 public:
     Context (LockManager *lock_mgr, LogManager *log_mgr, 
-            Transaction *txn, char *data_send = nullptr, int *offset = &const_offset)
+            Transaction *txn, char *data_send = nullptr, int *offset = &const_offset, bool output_ellipsis = false)
         : lock_mgr_(lock_mgr), log_mgr_(log_mgr), txn_(txn),
-          data_send_(data_send), offset_(offset) {
-            ellipsis_ = false;
-          }
+          data_send_(data_send), offset_(offset), output_ellipsis_(output_ellipsis) {
+        ellipsis_ = false;
+    }
 
     // TransactionManager *txn_mgr_;
     LockManager *lock_mgr_;
@@ -35,4 +35,5 @@ public:
     char *data_send_;
     int *offset_;
     bool ellipsis_;
+    bool output_ellipsis_;
 };

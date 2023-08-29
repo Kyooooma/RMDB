@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <signal.h>
 #include <unistd.h>
 #include <atomic>
+#include <sstream>
 
 #include "errors.h"
 #include "optimizer/optimizer.h"
@@ -85,6 +86,9 @@ void *client_handler(void *sock_fd) {
     std::string output = "establish client connection, sockfd: " + std::to_string(fd) + "\n";
     std::cout << output;
 
+    bool output_ellipsis = false;
+    std::string set_off = "set output_file off";
+
     while (true) {
         std::cout << "Waiting for request..." << std::endl;
         memset(data_recv, 0, BUFFER_LENGTH);
@@ -106,6 +110,7 @@ void *client_handler(void *sock_fd) {
             std::cout << "Client exit." << std::endl;
             break;
         }
+
 //        if (strcmp(data_recv, "crash") == 0) {
 //            std::cout << "Server crash" << std::endl;
 //            exit(1);
@@ -113,14 +118,47 @@ void *client_handler(void *sock_fd) {
 
         std::cout << "Read from client " << fd << ": " << data_recv << std::endl;
 
+        if (memcmp(data_recv, set_off.c_str(), set_off.length()) == 0) {
+            output_ellipsis = true;
+            memset(data_send, '\0', BUFFER_LENGTH);
+            // future TODO: 格式化 sql_handler.result, 传给客户端
+            // send result with fixed format, use protobuf in the future
+            if (write(fd, data_send, 1) == -1) {
+                break;
+            }
+            continue;
+        }
+
         memset(data_send, '\0', BUFFER_LENGTH);
         offset = 0;
 
         // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
-        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset);
+        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset,
+                                       output_ellipsis);
 
         //事务处理部分
         SetTransaction(&txn_id, context);
+
+        if (memcmp(data_recv, "load", 4) == 0) {
+            memset(data_send, '\0', BUFFER_LENGTH);
+            std::string file_name, tab_name, s = data_recv;
+            for(int i = 0; i < s.size(); i++){
+                if(s[i] == ' '){
+                    int j = i + 1;
+                    while(j < s.size() && s[j] != ' '){
+                        file_name += s[j++];
+                    }
+                    tab_name = s.substr(j + 6);
+                    break;
+                }
+            }
+            tab_name.pop_back();
+            sm_manager->load_record(file_name, tab_name, context);
+            if (write(fd, data_send, 1) == -1) {
+                break;
+            }
+            continue;
+        }
 
         // 用于判断是否已经调用了yy_delete_buffer来删除buf
         bool finish_analyze = false;
@@ -152,12 +190,14 @@ void *client_handler(void *sock_fd) {
             assert(e.get_transaction_id() == context->txn_->get_transaction_id());
             // 回滚事务
             txn_manager->abort(context, log_manager.get());
-            std::cout << e.GetInfo() << std::endl;
+//            std::cout << e.GetInfo() << std::endl;
 
-            std::fstream outfile;
-            outfile.open("output.txt", std::ios::out | std::ios::app);
-            outfile << str;
-            outfile.close();
+            if (!context->output_ellipsis_) {
+                std::fstream outfile;
+                outfile.open("output.txt", std::ios::out | std::ios::app);
+                outfile << str;
+                outfile.close();
+            }
         } catch (RMDBError &e) {
             // 遇到异常，需要打印failure到output.txt文件中，并发异常信息返回给客户端
             std::cerr << e.what() << std::endl;
@@ -167,13 +207,15 @@ void *client_handler(void *sock_fd) {
             data_send[e.get_msg_len() + 1] = '\0';
             offset = e.get_msg_len() + 1;
 
-            // 将报错信息写入output.txt
-            std::fstream outfile;
-            outfile.open("output.txt", std::ios::out | std::ios::app);
-            outfile << "failure\n";
-            outfile.close();
-        } catch (...){
-            std::cout << "111\n";
+            if (!context->output_ellipsis_) {
+                // 将报错信息写入output.txt
+                std::fstream outfile;
+                outfile.open("output.txt", std::ios::out | std::ios::app);
+                outfile << "failure\n";
+                outfile.close();
+            }
+        } catch (...) {
+//            std::cout << "111\n";
         }
         if (!finish_analyze) {
             yy_delete_buffer(buf);
@@ -270,9 +312,9 @@ void start_server() {
     std::cout << "Server shuts down." << std::endl;
 }
 
-void *log_timer(void * arg){
+void *log_timer(void *arg) {
     //定时将log刷入磁盘
-    while(!should_exit){
+    while (!should_exit) {
         std::this_thread::sleep_for(FLUSH_TIMEOUT);
         std::cout << "flush_log_to_disk\n";
         log_manager->flush_log_to_disk();

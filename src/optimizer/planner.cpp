@@ -373,6 +373,9 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
         // show index;
         plannerRoot = std::make_shared<DDLPlan>(T_ShowIndex, x->tab_name, std::vector<std::string>(),
                                                 std::vector<ColDef>());
+    } else if (auto x = std::dynamic_pointer_cast<ast::LoadRecord>(query->parse)) {
+        // show index;
+        plannerRoot = std::make_shared<LOADPlan>(T_LoadRecord, x->file_name, x->tab_name);
     } else if (auto x = std::dynamic_pointer_cast<ast::DropIndex>(query->parse)) {
         // drop index
         plannerRoot = std::make_shared<DDLPlan>(T_DropIndex, x->tab_name, x->col_names, std::vector<ColDef>());

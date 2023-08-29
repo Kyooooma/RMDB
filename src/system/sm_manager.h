@@ -79,4 +79,6 @@ class SmManager {
     void drop_index(const std::string& tab_name, const std::vector<std::string>& col_names, Context* context);
     
     void drop_index(const std::string& tab_name, const std::vector<ColMeta>& col_names, Context* context);
+
+    void load_record(const std::string& file_name, const std::string& tab_name, Context* context);
 };

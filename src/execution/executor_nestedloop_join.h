@@ -27,6 +27,7 @@ private:
     std::vector<std::unique_ptr<RmRecord>> left_v;
     int head;
     bool isend;
+    int size;
 
 public:
     NestedLoopJoinExecutor(std::unique_ptr<AbstractExecutor> left, std::unique_ptr<AbstractExecutor> right,
@@ -44,6 +45,7 @@ public:
         isend = false;
         fed_conds_ = std::move(conds);
         left_v.clear();
+        size = 50;
     }
 
     std::string getType() override { return "NestedLoopJoinExecutor"; };
@@ -76,7 +78,7 @@ public:
     }
 
     void find_rec(){
-        while (!left_->is_end() && left_v.size() < 100) {
+        while (!left_->is_end() && left_v.size() < size) {
             left_v.push_back(left_->Next());
             left_->nextTuple();
         }
@@ -103,7 +105,7 @@ public:
                     isend = true;
                     return;
                 }
-                while (!left_->is_end() && left_v.size() < 100) {
+                while (!left_->is_end() && left_v.size() < size) {
                     left_v.push_back(left_->Next());
                     left_->nextTuple();
                 }

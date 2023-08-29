@@ -21,13 +21,13 @@ void RecoveryManager::analyze() {
         if (len == -1 || len == 0) break;
         int offset = 0;
         while (offset < len) {
-            if(offset + OFFSET_LOG_TOT_LEN > len){
-                std::cout << offset << " " << OFFSET_LOG_TOT_LEN << " " << len << "\n";
+            if (offset + OFFSET_LOG_TOT_LEN > len) {
+//                std::cout << offset << " " << OFFSET_LOG_TOT_LEN << " " << len << "\n";
                 break;
             }
-            auto log_tot_len_ = *reinterpret_cast<const uint32_t*>(buffer_.buffer_ + offset + OFFSET_LOG_TOT_LEN);
-            if(offset + log_tot_len_ > len) {
-                std::cout << offset << " " << log_tot_len_ << " " << len << "\n";
+            auto log_tot_len_ = *reinterpret_cast<const uint32_t *>(buffer_.buffer_ + offset + OFFSET_LOG_TOT_LEN);
+            if (offset + log_tot_len_ > len) {
+//                std::cout << offset << " " << log_tot_len_ << " " << len << "\n";
                 break;
             }
             LogType log_type_ = *reinterpret_cast<const LogType *>(buffer_.buffer_ + offset);
@@ -105,9 +105,9 @@ void RecoveryManager::analyze() {
         off += offset;
     }
     //清空索引并重建
-    for(auto &i : tables){
+    for (auto &i: tables) {
         auto &tab = sm_manager_->db_.get_table(i);
-        for(const auto& index : tab.indexes){
+        for (const auto &index: tab.indexes) {
             auto ix_name = sm_manager_->get_ix_manager()->get_index_name(tab.name, index.cols);
             if (sm_manager_->ihs_.count(ix_name)) {// 说明被打开了
                 disk_manager_->close_file(sm_manager_->ihs_[ix_name]->get_fd());
@@ -128,40 +128,40 @@ void RecoveryManager::redo() {
     for (const auto &log_: logs) {
         if (auto log = std::dynamic_pointer_cast<InsertLogRecord>(log_)) {
             // redo insert
-            std::cout << "redo insert\n";
+//            std::cout << "redo insert\n";
             assert(sm_manager_->fhs_.count(log->table_name_));
             auto rfh = sm_manager_->fhs_[log->table_name_].get();
             try {
                 rfh->insert_record(log->rid_, log->insert_value_.data);
             } catch (RMDBError &e) {
-                std::cout << "dirty_page\n";
+//                std::cout << "dirty_page\n";
                 auto new_rid = rfh->insert_record(log->insert_value_.data, nullptr);
                 assert(new_rid == log->rid_);
             }
         } else if (auto log = std::dynamic_pointer_cast<UpdateLogRecord>(log_)) {
             // redo update
-            std::cout << "redo update\n";
+//            std::cout << "redo update\n";
             assert(sm_manager_->fhs_.count(log->table_name_));
             auto rfh = sm_manager_->fhs_[log->table_name_].get();
             rfh->update_record(log->rid_, log->now_value_.data, nullptr);
         } else if (auto log = std::dynamic_pointer_cast<DeleteLogRecord>(log_)) {
             //redo delete
-            std::cout << "redo delete\n";
+//            std::cout << "redo delete\n";
             assert(sm_manager_->fhs_.count(log->table_name_));
             auto rfh = sm_manager_->fhs_[log->table_name_].get();
             rfh->delete_record(log->rid_, nullptr);
         } else if (auto log = std::dynamic_pointer_cast<IndexInsertLogRecord>(log_)) {
             //redo index insert
-            std::cout << "redo index insert\n";
+//            std::cout << "redo index insert\n";
             assert(sm_manager_->ihs_.count(log->ix_name_));
             auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
-            std::cout << ih->insert_entry(log->key_, log->rid_, nullptr).second << '\n';
+            ih->insert_entry(log->key_, log->rid_, nullptr);
         } else if (auto log = std::dynamic_pointer_cast<IndexDeleteLogRecord>(log_)) {
             //redo index delete
-            std::cout << "redo index delete\n";
+//            std::cout << "redo index delete\n";
             assert(sm_manager_->ihs_.count(log->ix_name_));
             auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
-            std::cout << ih->delete_entry(log->key_, nullptr) << '\n';
+            ih->delete_entry(log->key_, nullptr);
         } else if (auto log = std::dynamic_pointer_cast<BeginLogRecord>(log_)) {
             continue;
         } else if (auto log = std::dynamic_pointer_cast<AbortLogRecord>(log_)) {
@@ -190,7 +190,7 @@ void RecoveryManager::rollback(bool flag) {
                 // 回滚insert
                 assert(sm_manager_->fhs_.count(log->table_name_));
                 auto rfh = sm_manager_->fhs_[log->table_name_].get();
-                std::cout << "回滚insert\n";
+//                std::cout << "回滚insert\n";
                 try {
                     rfh->delete_record(log->rid_, nullptr);
                 } catch (RMDBError &e) {
@@ -201,7 +201,7 @@ void RecoveryManager::rollback(bool flag) {
                 // 回滚update
                 assert(sm_manager_->fhs_.count(log->table_name_));
                 auto rfh = sm_manager_->fhs_[log->table_name_].get();
-                std::cout << "回滚update\n";
+//                std::cout << "回滚update\n";
                 try {
                     rfh->update_record(log->rid_, log->update_value_.data, nullptr);
                 } catch (RMDBError &e) {
@@ -212,7 +212,7 @@ void RecoveryManager::rollback(bool flag) {
                 //回滚delete
                 assert(sm_manager_->fhs_.count(log->table_name_));
                 auto rfh = sm_manager_->fhs_[log->table_name_].get();
-                std::cout << "回滚delete\n";
+//                std::cout << "回滚delete\n";
                 try {
                     rfh->insert_record(log->rid_, log->delete_value_.data);
                 } catch (RMDBError &e) {
@@ -221,20 +221,18 @@ void RecoveryManager::rollback(bool flag) {
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<IndexInsertLogRecord>(logs[now])) {
                 //回滚index insert
-                if(!flag){
+                if (!flag) {
                     assert(sm_manager_->ihs_.count(log->ix_name_));
                     auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
-                    std::cout << "回滚index insert\n" <<
-                              ih->delete_entry(log->key_, nullptr) << '\n';
+                    ih->delete_entry(log->key_, nullptr);
                 }
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<IndexDeleteLogRecord>(logs[now])) {
                 //回滚index delete
-                if(!flag){
+                if (!flag) {
                     assert(sm_manager_->ihs_.count(log->ix_name_));
                     auto ih = sm_manager_->ihs_.at(log->ix_name_).get();
-                    std::cout << "回滚index delete\n" <<
-                              ih->insert_entry(log->key_, log->rid_, nullptr).second << '\n';
+                    ih->insert_entry(log->key_, log->rid_, nullptr);
                 }
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<BeginLogRecord>(logs[now])) {

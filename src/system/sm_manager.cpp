@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "index/ix.h"
 #include "record/rm.h"
 #include "record_printer.h"
+#include "common/common.h"
 
 /**
  * @description: 判断是否为一个文件夹
@@ -95,7 +96,7 @@ void SmManager::open_db(const std::string &db_name) {
     ofs >> db_;
     for (auto &[tab_name, tab_info]: db_.tabs_) {
         fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
-        for(const auto& index : tab_info.indexes){
+        for (const auto &index: tab_info.indexes) {
             std::string ix_name = get_ix_manager()->get_index_name(tab_name, index.cols);
             ihs_.emplace(ix_name, get_ix_manager()->open_index(tab_name, index.cols));
         }
@@ -134,8 +135,10 @@ void SmManager::close_db() {
  */
 void SmManager::show_tables(Context *context) {
     std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
-    outfile << "| Tables |\n";
+    if (!context->output_ellipsis_) {
+        outfile.open("output.txt", std::ios::out | std::ios::app);
+        outfile << "| Tables |\n";
+    }
     RecordPrinter printer(1);
     printer.print_separator(context);
     printer.print_record({"Tables"}, context);
@@ -143,10 +146,14 @@ void SmManager::show_tables(Context *context) {
     for (auto &entry: db_.tabs_) {
         auto &tab = entry.second;
         printer.print_record({tab.name}, context);
-        outfile << "| " << tab.name << " |\n";
+        if (!context->output_ellipsis_) {
+            outfile << "| " << tab.name << " |\n";
+        }
     }
     printer.print_separator(context);
-    outfile.close();
+    if (!context->output_ellipsis_) {
+        outfile.close();
+    }
 }
 
 /**
@@ -216,9 +223,9 @@ void SmManager::drop_table(const std::string &tab_name, Context *context) {
         throw TableNotFoundError(tab_name);
     }
     TabMeta &tab = db_.get_table(tab_name);
-    for(const auto& index : tab.indexes){
+    for (const auto &index: tab.indexes) {
         std::vector<std::string> col_names;
-        for(const auto& name : index.cols){
+        for (const auto &name: index.cols) {
             col_names.push_back(name.name);
         }
         drop_index(tab_name, col_names, context);
@@ -239,7 +246,7 @@ void SmManager::drop_table(const std::string &tab_name, Context *context) {
  * @param {vector<string>&} col_names 索引包含的字段名称
  * @param {Context*} context
  */
-void SmManager::create_index(const std::string &tab_name, const std::vector<std::string> &col_names, Context *context_) {
+void SmManager::create_index(const std::string &tab_name, const std::vector<std::string> &col_names, Context *context) {
     std::vector<ColMeta> cols;
     TabMeta &tab = db_.get_table(tab_name);
     int tot_len = 0;
@@ -258,7 +265,7 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
     };
     tab.indexes.push_back(im);
     ihs_.emplace(ix_name, ix_manager_->open_index(tab_name, cols));
-    if(!fhs_.count(tab_name)){
+    if (!fhs_.count(tab_name)) {
         //如果没有打开表文件则打开
         fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
     }
@@ -267,33 +274,33 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
     auto ih = ihs_[ix_name].get();
     auto scan_ = std::make_unique<RmScan>(rfh);
     bool is_fail = false;
-    if(context_ != nullptr) context_->lock_mgr_->lock_shared_on_table(context_->txn_, rfh->GetFd());
+    if (context != nullptr) context->lock_mgr_->lock_shared_on_table(context->txn_, rfh->GetFd());
     while (!scan_->is_end()) {
         auto rid_ = scan_->rid();
-        auto rec = rfh->get_record(rid_, context_);
+        auto rec = rfh->get_record(rid_, context);
         char *key = new char[tot_len];
         int offset = 0;
-        for (auto & col : cols) {
+        for (auto &col: cols) {
             memcpy(key + offset, rec->data + col.offset, col.len);
             offset += col.len;
         }
 
         //更新索引插入日志
-        auto *index_log = new IndexInsertLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, tot_len);
-        index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-        context_->log_mgr_->add_log_to_buffer(index_log);
-        context_->txn_->set_prev_lsn(index_log->lsn_);
+        auto *index_log = new IndexInsertLogRecord(context->txn_->get_transaction_id(), key, rid_, ix_name, tot_len);
+        index_log->prev_lsn_ = context->txn_->get_prev_lsn();
+        context->log_mgr_->add_log_to_buffer_load(index_log);
+        context->txn_->set_prev_lsn(index_log->lsn_);
 
-        auto result = ih->insert_entry(key, rid_, context_->txn_);
-        if(!result.second){
+        auto result = ih->insert_entry(key, rid_, context->txn_);
+        if (!result.second) {
             //说明不满足唯一性，插入失败，需要rollback
             is_fail = true;
             break;
         }
         scan_->next();
     }
-    if(is_fail){
-        drop_index(tab_name, col_names, context_);
+    if (is_fail) {
+        drop_index(tab_name, col_names, context);
         return;
     }
     flush_meta();
@@ -342,11 +349,11 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<ColMet
     auto pos = std::find(tab.indexes.begin(), tab.indexes.end(), im);
     tab.indexes.erase(pos);
     auto ix_name = ix_manager_->get_index_name(tab_name, im.cols);
-    if(!ihs_.count(ix_name)){
+    if (!ihs_.count(ix_name)) {
         //如果没有打开则打开文件
         ihs_.emplace(ix_name, ix_manager_->open_index(tab_name, im.cols));
     }
-    if(!fhs_.count(tab_name)){
+    if (!fhs_.count(tab_name)) {
         //如果没有打开表文件则打开
         fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
     }
@@ -359,7 +366,7 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<ColMet
         auto rec = rfh->get_record(rid_, context);
         char *key = new char[tot_len];
         int offset = 0;
-        for (auto & col : im.cols) {
+        for (auto &col: im.cols) {
             memcpy(key + offset, rec->data + col.offset, col.len);
             offset += col.len;
         }
@@ -376,7 +383,9 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<ColMet
 
 void SmManager::show_index(const std::string &tab_name, Context *context) {
     std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
+    if (!context->output_ellipsis_) {
+        outfile.open("output.txt", std::ios::out | std::ios::app);
+    }
     RecordPrinter printer(3);
     printer.print_separator(context);
     TabMeta &tab = db_.get_table(tab_name);
@@ -390,8 +399,101 @@ void SmManager::show_index(const std::string &tab_name, Context *context) {
         col += ")";
         std::vector<std::string> v = {tab_name, "unique", col};
         printer.print_record(v, context);
-        outfile << "| " << tab_name << " | unique | " << col << " |\n";
+        if (!context->output_ellipsis_) {
+            outfile << "| " << tab_name << " | unique | " << col << " |\n";
+        }
     }
     printer.print_separator(context);
-    outfile.close();
+    if (!context->output_ellipsis_) {
+        outfile.close();
+    }
+}
+
+//读取数据
+void SmManager::load_record(const std::string &file_name, const std::string &tab_name, Context *context) {
+    std::string path, input;
+    path += file_name;// 路径
+    std::fstream ifs;// 文件读取流
+    ifs.open(path.c_str(), std::ios::in);
+    assert(fhs_.count(tab_name));
+    auto rfh = fhs_[tab_name].get();
+    auto &tab_info = db_.get_table(tab_name);
+    const std::streamsize buffer_size = 1024 * 1024;
+    char* buffer = new char[buffer_size];
+    ifs.rdbuf()->pubsetbuf(buffer,buffer_size);
+    getline(ifs, input);// 读入表头
+    while (getline(ifs, input)) {
+        RmRecord rec(rfh->get_file_hdr().record_size);// 数据
+        std::string values, value;
+        std::istringstream sin;
+        sin.str(input);
+        int cnt = 0;
+        while (std::getline(sin, value, ',')) { //将字符串流sin中的字符读到field字符串中，以逗号为分隔符
+            Value x;// 构造数据
+            auto &col = tab_info.cols[cnt];
+            switch (col.type) {
+                case TYPE_INT: {
+                    x.set_int(std::stoi(value));
+                    break;
+                }
+                case TYPE_FLOAT: {
+                    x.set_float(std::stof(value));
+                    break;
+                }
+                case TYPE_BIGINT: {
+                    x.set_bigint(std::stoll(value));
+                    break;
+                }
+                case TYPE_STRING: {
+                    x.set_str(value);
+                    break;
+                }
+                case TYPE_DATETIME: {
+                    long long datetime = 0;
+                    for (auto ch: value) {
+                        if (ch >= '0' && ch <= '9') {
+                            datetime = datetime * 10 + ch - '0';
+                        }
+                    }
+                    x.set_datetime(datetime);
+                    break;
+                }
+            }
+            x.init_raw(col.len);
+            cnt++;
+            memcpy(rec.data + col.offset, x.raw->data, col.len);
+        }
+        //实际插入
+        auto rid_ = rfh->insert_record(rec.data, context);
+        //更新日志-插入
+        auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid_, tab_name);
+        logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
+        context->log_mgr_->add_log_to_buffer_load(logRecord);
+        context->txn_->set_prev_lsn(logRecord->lsn_);
+        // 更新索引
+        for (auto & index : tab_info.indexes) {
+            auto ix_name = get_ix_manager()->get_index_name(tab_name, index.cols);
+            auto ih = ihs_.at(ix_name).get();
+            char *key = new char[index.col_tot_len];
+            int offset = 0;
+            for (size_t j = 0; j < index.col_num; ++j) {
+                memcpy(key + offset, rec.data + index.cols[j].offset, index.cols[j].len);
+                offset += index.cols[j].len;
+            }
+
+            //更新索引插入日志
+            auto *index_log = new IndexInsertLogRecord(context->txn_->get_transaction_id(), key, rid_, ix_name,
+                                                       index.col_tot_len);
+            index_log->prev_lsn_ = context->txn_->get_prev_lsn();
+            context->log_mgr_->add_log_to_buffer_load(index_log);
+            context->txn_->set_prev_lsn(index_log->lsn_);
+
+            ih->insert_entry(key, rid_, context->txn_);
+            free(key);
+        }
+        //更新事务
+        auto *wr = new WriteRecord(WType::INSERT_TUPLE, tab_name, rid_, rec);
+        context->txn_->append_write_record(wr);
+    }
+    ifs.close();
 }

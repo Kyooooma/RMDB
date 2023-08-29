@@ -21,7 +21,7 @@ using namespace ast;
 %define parse.error verbose
 
 // keywords
-%token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY SUM COUNT MAX MIN AS LIMIT
+%token SHOW TABLES CREATE TABLE DROP LOAD DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY SUM COUNT MAX MIN AS LIMIT
 WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
@@ -42,7 +42,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP 
 %type <sv_expr> expr
 %type <sv_val> value
 %type <sv_vals> valueList
-%type <sv_str> tbName colName
+%type <sv_str> tbName colName fileName suffix
 %type <sv_strs> tableList colNameList
 %type <sv_col> col
 %type <sv_cols> colList selector
@@ -135,6 +135,10 @@ ddl:
     |   SHOW INDEX FROM tbName
     {
         $$ = std::make_shared<ShowIndex>($4);
+    }
+    |   LOAD fileName '.' suffix INTO tbName
+    {
+        $$ = std::make_shared<LoadRecord>($2, $4, $6);
     }
     ;
 
@@ -421,7 +425,19 @@ setClauses:
     ;
 
 setClause:
-        colName '=' value
+        colName '=' colName '+' value
+    {
+        $$ = std::make_shared<SetClause>($1, $5, SV_OP_ADD);
+    }
+    |    colName '=' colName '-' value
+    {
+        $$ = std::make_shared<SetClause>($1, $5, SV_OP_SUB);
+    }
+    |    colName '=' colName value
+    {
+        $$ = std::make_shared<SetClause>($1, $4, SV_OP_ADD);
+    }
+    |    colName '=' value
     {
         $$ = std::make_shared<SetClause>($1, $3);
     }
@@ -500,4 +516,8 @@ opt_asc_desc:
 tbName: IDENTIFIER;
 
 colName: IDENTIFIER;
+
+fileName: IDENTIFIER;
+
+suffix: IDENTIFIER;
 %%

@@ -96,6 +96,10 @@ enum CompOp {
     OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE
 };
 
+enum SetOp {
+    OP_ADD, OP_SUB, OP_SET
+};
+
 struct Condition {
     TabCol lhs_col;   // left-hand side column
     CompOp op;        // comparison operator
@@ -107,4 +111,5 @@ struct Condition {
 struct SetClause {
     TabCol lhs;
     Value rhs;
+    SetOp op;
 };
