@@ -31,12 +31,11 @@ private:
     std::vector<std::string> index_col_names_;  // index scan涉及到的索引包含的字段
     IndexMeta index_meta_;                      // index scan涉及到的索引元数据
 
-    Rid rid_;
+    Rid rid_{};
     std::unique_ptr<IxScan> scan_;
     IxIndexHandle *ih;
     IxManager *im;
-    int index_cnt;                                    // 匹配的索引字段长度
-
+    int index_cnt{};                                    // 匹配的索引字段长度
     SmManager *sm_manager_;
 
 public:
@@ -218,6 +217,7 @@ public:
             }
             scan_->next();
         }
+        delete[] key;
     }
 
     void nextTuple() override {
@@ -228,7 +228,6 @@ public:
             rid_ = scan_->rid();
             try {
                 auto rec = fh_->get_record(rid_, context_);
-//                auto rec = fh_->get_record(rid_, context_);
                 if (fed_conds_.empty() || eval_conds(cols_, fed_conds_, rec.get())) {
                     break;
                 }

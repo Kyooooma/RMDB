@@ -32,9 +32,9 @@ public:
     
     ~TransactionManager() = default;
 
-    Transaction* begin(Transaction* txn, LogManager* log_manager);
+    Transaction* begin(Transaction* txn, LogManager* log_manager, Context* context_);
 
-    void commit(Transaction* txn, LogManager* log_manager);
+    void commit(Transaction* txn, LogManager* log_manager, Context* context_);
 
     void abort(Context* context, LogManager* log_manager);
 
@@ -52,13 +52,17 @@ public:
      * @description: 获取事务ID为txn_id的事务对象
      * @return {Transaction*} 事务对象的指针
      * @param {txn_id_t} txn_id 事务ID
-     */    
+     */
     Transaction* get_transaction(txn_id_t txn_id) {
         if(txn_id == INVALID_TXN_ID) return nullptr;
         
         std::unique_lock<std::mutex> lock(latch_);
-        assert(TransactionManager::txn_map.find(txn_id) != TransactionManager::txn_map.end());
-        auto *res = TransactionManager::txn_map[txn_id];
+        if(!TransactionManager::txn_map.count(txn_id)){
+            lock.unlock();
+            return nullptr;
+        }
+        assert(TransactionManager::txn_map.find(txn_id) != txn_map.end());
+        auto res = txn_map[txn_id];
         lock.unlock();
         assert(res != nullptr);
         assert(res->get_thread_id() == std::this_thread::get_id());
@@ -66,11 +70,21 @@ public:
         return res;
     }
 
+    void delete_transaction(txn_id_t txn_id){
+        std::unique_lock<std::mutex> lock(latch_);
+        if(txn_map.count(txn_id)){
+            delete txn_map[txn_id];
+            txn_map.erase(txn_id);
+        }
+        lock.unlock();
+    }
+
     txn_id_t get_next_txn_id(){
+//        std::cout << "txn_id:: " << next_txn_id_ << '\n';
         return next_txn_id_++;
     }
 
-    static std::unordered_map<txn_id_t, Transaction *> txn_map;     // 全局事务表，存放事务ID与事务对象的映射关系
+    static std::unordered_map<txn_id_t, Transaction*> txn_map;     // 全局事务表，存放事务ID与事务对象的映射关系
 
 private:
     ConcurrencyMode concurrency_mode_;      // 事务使用的并发控制算法，目前只需要考虑2PL

@@ -105,11 +105,11 @@ class BPlusTreeTests : public ::testing::Test {
         assert(disk_manager_->is_dir(TEST_DB_NAME));
     };
 
-    void ToGraph(const IxIndexHandle *ih, IxNodeHandle *node, BufferPoolManager *bpm, std::ofstream &out) const {
+    void ToGraph(const IxIndexHandle *ih, std::shared_ptr<IxNodeHandle> node, BufferPoolManager *bpm, std::ofstream &out) const {
         std::string leaf_prefix("LEAF_");
         std::string internal_prefix("INT_");
         if (node->is_leaf_page()) {
-            IxNodeHandle *leaf = node;
+            auto leaf = node;
             // Print node name
             out << leaf_prefix << leaf->get_page_no();
             // Print node properties
@@ -141,7 +141,7 @@ class BPlusTreeTests : public ::testing::Test {
                     << leaf->get_page_no() << ";\n";
             }
         } else {
-            IxNodeHandle *inner = node;
+            auto inner = node;
             // Print node name
             out << internal_prefix << inner->get_page_no();
             // Print node properties
@@ -173,10 +173,10 @@ class BPlusTreeTests : public ::testing::Test {
             }
             // Print leaves
             for (int i = 0; i < inner->get_size(); i++) {
-                IxNodeHandle *child_node = ih->fetch_node(inner->value_at(i));
+                auto child_node = ih->fetch_node(inner->value_at(i));
                 ToGraph(ih, child_node, bpm, out);  // 继续递归
                 if (i > 0) {
-                    IxNodeHandle *sibling_node = ih->fetch_node(inner->value_at(i - 1));
+                    auto sibling_node = ih->fetch_node(inner->value_at(i - 1));
                     if (!sibling_node->is_leaf_page() && !child_node->is_leaf_page()) {
                         out << "{rank=same " << internal_prefix << sibling_node->get_page_no() << " " << internal_prefix
                             << child_node->get_page_no() << "};\n";
@@ -197,7 +197,7 @@ class BPlusTreeTests : public ::testing::Test {
     void Draw(BufferPoolManager *bpm, const std::string &outf) {
         std::ofstream out(outf);
         out << "digraph G {" << std::endl;
-        IxNodeHandle *node = ih_->fetch_node(ih_->file_hdr_->root_page_);
+        auto node = ih_->fetch_node(ih_->file_hdr_->root_page_);
         ToGraph(ih_.get(), node, bpm, out);
         out << "}" << std::endl;
         out.close();
@@ -253,7 +253,7 @@ TEST_F(BPlusTreeTests, InsertTest) {
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        ih_->get_value(index_key, &rids, txn_.get());  // 调用get_value
+        ih_->get_value(index_key, &rids);  // 调用get_value
         EXPECT_EQ(rids.size(), 1);
 
         int32_t value = key & 0xFFFFFFFF;
@@ -264,7 +264,7 @@ TEST_F(BPlusTreeTests, InsertTest) {
     for (int key = scale + 1; key <= scale + 100; key++) {
         rids.clear();
         index_key = (const char *)&key;
-        ih_->get_value(index_key, &rids, txn_.get());  // 调用get_value
+        ih_->get_value(index_key, &rids);  // 调用get_value
         EXPECT_EQ(rids.size(), 0);
     }
 }
@@ -305,7 +305,7 @@ TEST_F(BPlusTreeTests, LargeScaleTest) {
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        ih_->get_value(index_key, &rids, txn_.get());  // 调用get_value
+        ih_->get_value(index_key, &rids);  // 调用get_value
         EXPECT_EQ(rids.size(), 1);
 
         int64_t value = key & 0xFFFFFFFF;

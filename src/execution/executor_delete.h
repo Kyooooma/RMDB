@@ -36,7 +36,6 @@ public:
         conds_ = std::move(conds);
         rids_ = std::move(rids);
         context_ = context;
-        context_->lock_mgr_->lock_IX_on_table(context->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
     }
 
     std::string getType() override { return "DeleteExecutor"; };
@@ -55,11 +54,16 @@ public:
             //更新索引删除日志
             auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, index.col_tot_len);
             index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->log_mgr_->add_log_to_buffer(index_log);
+            if(context_->output_ellipsis_){
+                context_->log_mgr_->add_log_to_buffer_load(index_log);
+            }else{
+                context_->log_mgr_->add_log_to_buffer(index_log);
+            }
             context_->txn_->set_prev_lsn(index_log->lsn_);
+            delete index_log;
             //删除索引
             ih->delete_entry(key, context_->txn_);
-            free(key);
+            delete[] key;
         }
     }
 
@@ -69,13 +73,18 @@ public:
             //更新日志
             auto *logRecord = new DeleteLogRecord(context_->txn_->get_transaction_id(), *rec, rid,tab_name_);
             logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->log_mgr_->add_log_to_buffer(logRecord);
+            if(context_->output_ellipsis_){
+                context_->log_mgr_->add_log_to_buffer_load(logRecord);
+            }else{
+                context_->log_mgr_->add_log_to_buffer(logRecord);
+            }
             context_->txn_->set_prev_lsn(logRecord->lsn_);
+            delete logRecord;
             //实际删除
             delete_index(rec.get(), rid);
             fh_->delete_record(rid, context_);
             //更新事务
-            auto *wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
+            auto wr = WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rec);
             context_->txn_->append_write_record(wr);
         }
         return nullptr;

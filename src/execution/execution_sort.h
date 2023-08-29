@@ -31,7 +31,7 @@ class SortExecutor : public AbstractExecutor {
         }
         is_desc_ = std::move(is_desc);
         tuple_num = 0;
-        tuples.clear();
+        std::vector<std::unique_ptr<RmRecord>>().swap(tuples);
     }
 
     std::string getType() override { return "SortExecutor"; };
@@ -97,5 +97,5 @@ class SortExecutor : public AbstractExecutor {
     }
 
     Rid &rid() override { return _abstract_rid; }
-    bool is_end() const {return tuple_num == tuples.size(); };
+    bool is_end() const override {return tuple_num == tuples.size(); };
 };

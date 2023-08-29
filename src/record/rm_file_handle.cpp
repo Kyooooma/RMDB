@@ -20,10 +20,11 @@ std::unique_ptr<RmRecord> RmFileHandle::get_record(const Rid &rid, Context *cont
     // Todo:
     // 1. 获取指定记录所在的page handle
     // 2. 初始化一个指向RmRecord的指针（赋值其内部的data和size）
-    if(context != nullptr) context->lock_mgr_->lock_shared_on_record(context->txn_, rid, fd_);
+//    if(context != nullptr) context->lock_mgr_->lock_shared_on_table(context->txn_, fd_);
     RmPageHandle rph = fetch_page_handle(rid.page_no);
     char *data = rph.get_slot(rid.slot_no);
     std::unique_ptr<RmRecord> res = std::make_unique<RmRecord>(rph.file_hdr->record_size, data);
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), false);
     return res;
 }
 
@@ -40,8 +41,9 @@ Rid RmFileHandle::insert_record(char *buf, Context *context) {
     // 3. 将buf复制到空闲slot位置
     // 4. 更新page_handle.page_hdr中的数据结构
     // 注意考虑插入一条记录后页面已满的情况，需要更新file_hdr_.first_free_page_no
-    if(context != nullptr) context->lock_mgr_->lock_exclusive_on_table(context->txn_, fd_);
+//    if(context != nullptr) context->lock_mgr_->lock_exclusive_on_table(context->txn_, fd_);
     RmPageHandle rph = create_page_handle();// 找空闲页
+    assert(rph.page != nullptr);
     int slot_no = Bitmap::first_bit(false, rph.bitmap, file_hdr_.num_records_per_page);// 找第一个为0的位置
     memcpy(rph.get_slot(slot_no), buf, rph.file_hdr->record_size);// 插入数据
     Bitmap::set(rph.bitmap, slot_no);// 更新bitmap
@@ -49,7 +51,9 @@ Rid RmFileHandle::insert_record(char *buf, Context *context) {
     if (rph.page_hdr->num_records == rph.file_hdr->num_records_per_page) {// 说明页面已满
         file_hdr_.first_free_page_no = rph.page_hdr->next_free_page_no;
     }
-    return {rph.page->get_page_id().page_no, slot_no};
+    Rid rid = {rph.page->get_page_id().page_no, slot_no};
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
+    return rid;
 }
 
 /**
@@ -70,6 +74,7 @@ void RmFileHandle::insert_record(const Rid &rid, char *buf) {
             file_hdr_.first_free_page_no = rph.page_hdr->next_free_page_no;//tbd
         }
     }
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
 }
 
 /**
@@ -82,7 +87,7 @@ void RmFileHandle::delete_record(const Rid &rid, Context *context) {
     // 1. 获取指定记录所在的page handle
     // 2. 更新page_handle.page_hdr中的数据结构
     // 注意考虑删除一条记录后页面未满的情况，需要调用release_page_handle()
-    if(context != nullptr) context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+//    if(context != nullptr) context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
     if (rid.page_no >= file_hdr_.num_pages) {
         throw PageNotExistError(" RmFileHandle delete_record ", rid.page_no);
     }
@@ -92,6 +97,7 @@ void RmFileHandle::delete_record(const Rid &rid, Context *context) {
     if (rph.page_hdr->num_records + 1 >= rph.file_hdr->num_records_per_page) {// 说明页面已满 -> 未满
         release_page_handle(rph);
     }
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
 }
 
 
@@ -105,12 +111,13 @@ void RmFileHandle::update_record(const Rid &rid, char *buf, Context *context) {
     // Todo:
     // 1. 获取指定记录所在的page handle
     // 2. 更新记录
-    if(context != nullptr) context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+//    if(context != nullptr) context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
     if (rid.page_no >= file_hdr_.num_pages) {
         throw PageNotExistError(" RmFileHandle update_record ", rid.page_no);
     }
     RmPageHandle rph = fetch_page_handle(rid.page_no);
     memcpy(rph.get_slot(rid.slot_no), buf, rph.file_hdr->record_size);
+    buffer_pool_manager_->unpin_page(rph.page->get_page_id(), true);
 }
 
 /**
@@ -144,7 +151,7 @@ RmPageHandle RmFileHandle::create_new_page_handle() {
     PageId new_page_id = {.fd = fd_};
     Page *page = buffer_pool_manager_->new_page(&new_page_id);
     if (page != nullptr) {
-        RmPageHandle rph = {&file_hdr_, page};
+        RmPageHandle rph = RmPageHandle(&file_hdr_, page);
         rph.page_hdr->next_free_page_no = file_hdr_.first_free_page_no;
         file_hdr_.first_free_page_no = page->get_page_id().page_no;
         rph.page_hdr->num_records = 0;

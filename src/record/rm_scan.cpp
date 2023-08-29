@@ -52,6 +52,7 @@ void RmScan:: find(){
         RmPageHandle rph = file_handle_->fetch_page_handle(page_no);
         int max_n = file_handle_->file_hdr_.num_records_per_page;
         int slot_no = Bitmap::next_bit(true, rph.bitmap, max_n, rid_.slot_no);
+        file_handle_->buffer_pool_manager_->unpin_page(rph.page->get_page_id(), false);
         if (slot_no < max_n) {
             rid_ = {page_no, slot_no};
             return;

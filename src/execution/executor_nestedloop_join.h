@@ -25,7 +25,7 @@ private:
 
     std::vector<Condition> fed_conds_;          // join条件
     std::vector<std::unique_ptr<RmRecord>> left_v;
-    int head;
+    int head{};
     bool isend;
     int size;
 

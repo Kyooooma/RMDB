@@ -108,11 +108,11 @@ class ConcurrencyTest : public ::testing::Test {
         }
     }
 
-    void RunLockOperation(Transaction *txn, const LockOperation &operation) {
+    void RunLockOperation(std::shared_ptr<Transaction> txn, const LockOperation &operation) {
         switch (operation.lock_mode_) {
             case LockMode::SHARED: {
                 if(operation.data_type_ == LockDataType::RECORD) {
-                    lock_manager->lock_shared_on_record(txn, operation.rid_, operation.table_);
+                    lock_manager->lock_shared_on_record(txn.get(), operation.rid_, operation.table_);
                 }
                 else {
                     lock_manager->lock_shared_on_table(txn, operation.table_);
@@ -120,17 +120,17 @@ class ConcurrencyTest : public ::testing::Test {
             } break;
             case LockMode::EXCLUSIVE: {
                 if(operation.data_type_ == LockDataType::TABLE) {
-                    lock_manager->lock_exclusive_on_record(txn, operation.rid_, operation.table_);
+                    lock_manager->lock_exclusive_on_record(txn.get(), operation.rid_, operation.table_);
                 }
                 else {
                     lock_manager->lock_shared_on_table(txn, operation.table_);
                 }
             } break;
             case LockMode::INTENTION_SHARED: {
-                lock_manager->lock_IS_on_table(txn, operation.table_);
+                lock_manager->lock_IS_on_table(txn.get(), operation.table_);
             } break;
             case LockMode::INTENTION_EXCLUSIVE: {
-                lock_manager->lock_IX_on_table(txn, operation.table_);
+                lock_manager->lock_IX_on_table(txn.get(), operation.table_);
             } break;
             default:
                 break;
@@ -212,6 +212,7 @@ TEST_F(ConcurrencyTest, ReadCommitedTest) {
         char *result = new char[BUFFER_LENGTH];
         txn_id_t txn_id = INVALID_TXN_ID;
         int offset;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         exec_sql("begin;", result, &offset, &txn_id);
         exec_sql("insert into t1 values (1, 1);", result, &offset, &txn_id);
 
@@ -225,8 +226,9 @@ TEST_F(ConcurrencyTest, ReadCommitedTest) {
         txn_id_t txn_id = INVALID_TXN_ID;
         int offset;
         // sleep thread1 to make thread0 obtain lock first;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         exec_sql("begin;", result, &offset, &txn_id);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
         // this sentence
         exec_sql("select * from t1;", result, &offset, &txn_id);
 
@@ -270,6 +272,7 @@ TEST_F(ConcurrencyTest, UnrepeatableReadTest) {
         char *result = new char[BUFFER_LENGTH];
         txn_id_t txn_id = INVALID_TXN_ID;
         int offset;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         exec_sql("begin;", result, &offset, &txn_id);
         exec_sql("select * from t1 where id = 1;", result, &offset, &txn_id);
         char *first_result = new char[BUFFER_LENGTH];
@@ -289,8 +292,8 @@ TEST_F(ConcurrencyTest, UnrepeatableReadTest) {
         txn_id_t txn_id = INVALID_TXN_ID;
         int offset;
         // sleep thread1 to make thread0 obtain lock first;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         exec_sql("begin;", result, &offset, &txn_id);
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
         // this sentence
         exec_sql("update t1 set num = 2 where id = 1;", result, &offset, &txn_id);
 

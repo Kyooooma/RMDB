@@ -81,6 +81,7 @@ struct RmRecord {
         }
         data = new char[size];
         memcpy(data, data_ + sizeof(int), size);
+        allocated_ = true;
     }
 
     ~RmRecord() {

@@ -106,11 +106,11 @@ class BPlusTreeConcurrentTest : public ::testing::Test {
         assert(disk_manager_->is_dir(TEST_DB_NAME));
     };
 
-    void ToGraph(const IxIndexHandle *ih, IxNodeHandle *node, BufferPoolManager *bpm, std::ofstream &out) const {
+    void ToGraph(const IxIndexHandle *ih, std::shared_ptr<IxNodeHandle> node, BufferPoolManager *bpm, std::ofstream &out) const {
         std::string leaf_prefix("LEAF_");
         std::string internal_prefix("INT_");
         if (node->is_leaf_page()) {
-            IxNodeHandle *leaf = node;
+            auto leaf = node;
             // Print node name
             out << leaf_prefix << leaf->get_page_no();
             // Print node properties
@@ -142,7 +142,7 @@ class BPlusTreeConcurrentTest : public ::testing::Test {
                     << leaf->get_page_no() << ";\n";
             }
         } else {
-            IxNodeHandle *inner = node;
+            auto inner = node;
             // Print node name
             out << internal_prefix << inner->get_page_no();
             // Print node properties
@@ -173,10 +173,10 @@ class BPlusTreeConcurrentTest : public ::testing::Test {
             }
             // Print leaves
             for (int i = 0; i < inner->get_size(); i++) {
-                IxNodeHandle *child_node = ih->fetch_node(inner->value_at(i));
+                auto child_node = ih->fetch_node(inner->value_at(i));
                 ToGraph(ih, child_node, bpm, out);  // 继续递归
                 if (i > 0) {
-                    IxNodeHandle *sibling_node = ih->fetch_node(inner->value_at(i - 1));
+                    auto sibling_node = ih->fetch_node(inner->value_at(i - 1));
                     if (!sibling_node->is_leaf_page() && !child_node->is_leaf_page()) {
                         out << "{rank=same " << internal_prefix << sibling_node->get_page_no() << " " << internal_prefix
                             << child_node->get_page_no() << "};\n";
@@ -197,7 +197,7 @@ class BPlusTreeConcurrentTest : public ::testing::Test {
     void Draw(BufferPoolManager *bpm, const std::string &outf) {
         std::ofstream out(outf);
         out << "digraph G {" << std::endl;
-        IxNodeHandle *node = ih_->fetch_node(ih_->file_hdr_->root_page_);
+        auto node = ih_->fetch_node(ih_->file_hdr_->root_page_);
         ToGraph(ih_.get(), node, bpm, out);
         out << "}" << std::endl;
         out.close();
@@ -244,7 +244,7 @@ int getThreadId() {
 void InsertHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
                   __attribute__((unused)) uint64_t thread_itr = 0) {
     // create transaction
-    Transaction *transaction = new Transaction(0);  // 注意，每个线程都有一个事务；不能从上层传入一个共用的事务
+    auto *transaction = new Transaction(0);  // 注意，每个线程都有一个事务；不能从上层传入一个共用的事务
 
     const char *index_key;
     for (auto key : keys) {
@@ -258,7 +258,7 @@ void InsertHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
     for (auto key : keys) {
         rids.clear();
         index_key = (const char *)&key;
-        tree->get_value(index_key, &rids, transaction);  // 调用GetValue
+        tree->get_value(index_key, &rids);  // 调用GetValue
         EXPECT_EQ(rids.size(), 1);
 
         int64_t value = key & 0xFFFFFFFF;
@@ -272,7 +272,7 @@ void InsertHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
 void DeleteHelper(IxIndexHandle *tree, const std::vector<int64_t> &keys,
                   __attribute__((unused)) uint64_t thread_itr = 0) {
     // create transaction
-    Transaction *transaction = new Transaction(0);  // 注意，每个线程都有一个事务；不能从上层传入一个共用的事务
+    auto *transaction = new Transaction(0);  // 注意，每个线程都有一个事务；不能从上层传入一个共用的事务
 
     const char *index_key;
     for (auto key : keys) {

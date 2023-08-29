@@ -21,7 +21,7 @@ See the Mulan PSL v2 for more details. */
 class UpdateExecutor : public AbstractExecutor {
 private:
     TabMeta tab_;
-    size_t len_;
+    size_t len_{};
     std::vector<Condition> conds_;
     RmFileHandle *fh_;
     std::vector<Rid> rids_;
@@ -65,11 +65,15 @@ public:
             auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name,
                                                        index.col_tot_len);
             index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->log_mgr_->add_log_to_buffer(index_log);
+            if(context_->output_ellipsis_){
+                context_->log_mgr_->add_log_to_buffer_load(index_log);
+            }else{
+                context_->log_mgr_->add_log_to_buffer(index_log);
+            }
             context_->txn_->set_prev_lsn(index_log->lsn_);
-
+            delete index_log;
             ih->delete_entry(key, context_->txn_);
-            free(key);
+            delete[] key;
         }
     }
 
@@ -90,11 +94,15 @@ public:
             auto *index_log = new IndexInsertLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name,
                                                        index.col_tot_len);
             index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->log_mgr_->add_log_to_buffer(index_log);
+            if(context_->output_ellipsis_){
+                context_->log_mgr_->add_log_to_buffer_load(index_log);
+            }else{
+                context_->log_mgr_->add_log_to_buffer(index_log);
+            }
             context_->txn_->set_prev_lsn(index_log->lsn_);
-
+            delete index_log;
             auto result = ih->insert_entry(key, rid_, context_->txn_);
-            free(key);
+            delete[] key;
             if (!result.second) {
                 fail_p = i;
                 break;
@@ -118,11 +126,15 @@ public:
                 auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name,
                                                            index.col_tot_len);
                 index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-                context_->log_mgr_->add_log_to_buffer(index_log);
+                if(context_->output_ellipsis_){
+                    context_->log_mgr_->add_log_to_buffer_load(index_log);
+                }else{
+                    context_->log_mgr_->add_log_to_buffer(index_log);
+                }
                 context_->txn_->set_prev_lsn(index_log->lsn_);
-
+                delete index_log;
                 ih->delete_entry(key, context_->txn_);
-                free(key);
+               delete[] key;
             }
             return false;
         }
@@ -194,12 +206,17 @@ public:
             //更新日志
             auto *logRecord = new UpdateLogRecord(context_->txn_->get_transaction_id(), *old_rec, rid, tab_name_, *rec);
             logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->log_mgr_->add_log_to_buffer(logRecord);
+            if(context_->output_ellipsis_){
+                context_->log_mgr_->add_log_to_buffer_load(logRecord);
+            }else{
+                context_->log_mgr_->add_log_to_buffer(logRecord);
+            }
             context_->txn_->set_prev_lsn(logRecord->lsn_);
+            delete logRecord;
             //更新记录
             fh_->update_record(rid, rec->data, context_);
             //更新事务
-            auto *wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
+            auto wr = WriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, *old_rec);
             context_->txn_->append_write_record(wr);
         }
 
@@ -207,11 +224,11 @@ public:
             //插入失败
             while (upd_cnt--) {
                 auto last = context_->txn_->get_last_write_record();
-                auto type = last->GetWriteType();
+                auto type = last.GetWriteType();
                 assert(type == WType::UPDATE_TUPLE);
-                auto rid_ = last->GetRid();
-                auto tab_name = last->GetTableName();
-                auto rec_ = last->GetRecord();
+                auto rid_ = last.GetRid();
+                auto tab_name = last.GetTableName();
+                auto rec_ = last.GetRecord();
                 auto now_rec = fh_->get_record(rid_, context_);
                 delete_index(now_rec.get(), rid_);
                 insert_index(&rec_, rid_);
@@ -219,9 +236,13 @@ public:
                 auto *logRecord = new UpdateLogRecord(context_->txn_->get_transaction_id(), *now_rec, rid_, tab_name_,
                                                       rec_);
                 logRecord->prev_lsn_ = context_->txn_->get_prev_lsn();
-                context_->log_mgr_->add_log_to_buffer(logRecord);
+                if(context_->output_ellipsis_){
+                    context_->log_mgr_->add_log_to_buffer_load(logRecord);
+                }else{
+                    context_->log_mgr_->add_log_to_buffer(logRecord);
+                }
                 context_->txn_->set_prev_lsn(logRecord->lsn_);
-
+                delete logRecord;
                 fh_->update_record(rid_, rec_.data, context_);
                 context_->txn_->delete_write_record();
             }

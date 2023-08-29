@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include "record/rm_file_handle.h"
 #include "system/sm_manager.h"
 
-std::unordered_map<txn_id_t, Transaction *> TransactionManager::txn_map = {};
+std::unordered_map<txn_id_t, Transaction*> TransactionManager::txn_map = {};
 
 /**
  * @description: 事务的开始方法
@@ -20,7 +20,7 @@ std::unordered_map<txn_id_t, Transaction *> TransactionManager::txn_map = {};
  * @param {Transaction*} txn 事务指针，空指针代表需要创建新事务，否则开始已有事务
  * @param {LogManager*} log_manager 日志管理器指针
  */
-Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manager) {
+Transaction* TransactionManager::begin(Transaction* txn, LogManager* log_manager, Context* context_) {
     // Todo:
     // 1. 判断传入事务参数是否为空指针
     // 2. 如果为空指针，创建新事务
@@ -33,8 +33,13 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     txn_map.emplace(txn->get_transaction_id(), txn);
     auto *log = new BeginLogRecord(txn->get_transaction_id());
     log->prev_lsn_ = txn->get_prev_lsn();
-    log_manager->add_log_to_buffer(log);
+    if(context_->output_ellipsis_){
+        context_->log_mgr_->add_log_to_buffer_load(log);
+    }else{
+        context_->log_mgr_->add_log_to_buffer(log);
+    }
     txn->set_prev_lsn(log->lsn_);
+    delete log;
     return txn;
 }
 
@@ -43,7 +48,7 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
  * @param {Transaction*} txn 需要提交的事务
  * @param {LogManager*} log_manager 日志管理器指针
  */
-void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
+void TransactionManager::commit(Transaction* txn, LogManager* log_manager, Context * context_) {
     // Todo:
     // 1. 如果存在未提交的写操作，提交所有的写操作
     // 2. 释放所有锁
@@ -52,16 +57,20 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     // 5. 更新事务状态
     //释放所有锁
     //释放事务相关资源，eg.锁集
-    auto lock_set = txn->get_lock_set();
-    for(auto i : *lock_set){
+    for(auto i : *txn->lock_set_){
         lock_manager_->unlock(txn, i);
     }
     txn->clear();
     // 4. 把事务日志刷入磁盘中
     auto *log = new CommitLogRecord(txn->get_transaction_id());
     log->prev_lsn_ = txn->get_prev_lsn();
-    log_manager->add_log_to_buffer(log);
+    if(context_->output_ellipsis_){
+        context_->log_mgr_->add_log_to_buffer_load(log);
+    }else{
+        context_->log_mgr_->add_log_to_buffer(log);
+    }
     txn->set_prev_lsn(log->lsn_);
+    delete log;
     // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
 }
@@ -82,11 +91,15 @@ void TransactionManager::delete_index(const std::string& tab_name, RmRecord* rec
         //更新索引删除日志
         auto *index_log = new IndexDeleteLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, index.col_tot_len);
         index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-        context_->log_mgr_->add_log_to_buffer(index_log);
+        if(context_->output_ellipsis_){
+            context_->log_mgr_->add_log_to_buffer_load(index_log);
+        }else{
+            context_->log_mgr_->add_log_to_buffer(index_log);
+        }
         context_->txn_->set_prev_lsn(index_log->lsn_);
-
+        delete index_log;
         ih->delete_entry(key, nullptr);
-        free(key);
+        delete[] key;
     }
 }
 
@@ -106,12 +119,16 @@ void TransactionManager::insert_index(const std::string& tab_name, RmRecord* rec
         //更新索引插入日志
         auto *index_log = new IndexInsertLogRecord(context_->txn_->get_transaction_id(), key, rid_, ix_name, index.col_tot_len);
         index_log->prev_lsn_ = context_->txn_->get_prev_lsn();
-        context_->log_mgr_->add_log_to_buffer(index_log);
+        if(context_->output_ellipsis_){
+            context_->log_mgr_->add_log_to_buffer_load(index_log);
+        }else{
+            context_->log_mgr_->add_log_to_buffer(index_log);
+        }
         context_->txn_->set_prev_lsn(index_log->lsn_);
-
+        delete index_log;
         auto result = ih->insert_entry(key, rid_, nullptr);
         assert(result.second == true);
-        free(key);
+        delete[] key;
     }
 }
 
@@ -128,15 +145,14 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
     auto txn = context->txn_;
-    auto write_set = txn->get_write_set();
     //从后往前遍历
-    while(!write_set->empty()){
-        auto last = write_set->back();
-        write_set->pop_back();
-        auto type = last->GetWriteType();
-        auto rid = last->GetRid();
-        auto tab_name = last->GetTableName();
-        auto rec = last->GetRecord();
+    while(!txn->write_set_->empty()){
+        auto last = txn->write_set_->back();
+        txn->write_set_->pop_back();
+        auto type = last.GetWriteType();
+        auto rid = last.GetRid();
+        auto tab_name = last.GetTableName();
+        auto rec = last.GetRecord();
         assert(sm_manager_->fhs_.count(tab_name));
         auto rfh = sm_manager_->fhs_[tab_name].get();
         if(type == WType::INSERT_TUPLE){
@@ -146,9 +162,13 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             //更新日志
             auto *logRecord = new DeleteLogRecord(context->txn_->get_transaction_id(), rec, rid,tab_name);
             logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
-            context->log_mgr_->add_log_to_buffer(logRecord);
+            if(context->output_ellipsis_){
+                context->log_mgr_->add_log_to_buffer_load(logRecord);
+            }else{
+                context->log_mgr_->add_log_to_buffer(logRecord);
+            }
             context->txn_->set_prev_lsn(logRecord->lsn_);
-
+            delete logRecord;
             delete_index(tab_name, &rec, rid, context);
             rfh->delete_record(rid, context);
         }else if(type == WType::DELETE_TUPLE){
@@ -157,9 +177,13 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             //更新日志-插入
             auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid,tab_name);
             logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
-            context->log_mgr_->add_log_to_buffer(logRecord);
+            if(context->output_ellipsis_){
+                context->log_mgr_->add_log_to_buffer_load(logRecord);
+            }else{
+                context->log_mgr_->add_log_to_buffer(logRecord);
+            }
             context->txn_->set_prev_lsn(logRecord->lsn_);
-
+            delete logRecord;
             insert_index(tab_name, &rec, rid, context);
             rfh->insert_record(rid, rec.data);
         }else if(type == WType::UPDATE_TUPLE){
@@ -170,17 +194,20 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
             //更新日志
             auto *logRecord = new UpdateLogRecord(context->txn_->get_transaction_id(), *old, rid,tab_name, rec);
             logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
-            context->log_mgr_->add_log_to_buffer(logRecord);
+            if(context->output_ellipsis_){
+                context->log_mgr_->add_log_to_buffer_load(logRecord);
+            }else{
+                context->log_mgr_->add_log_to_buffer(logRecord);
+            }
             context->txn_->set_prev_lsn(logRecord->lsn_);
-
+            delete logRecord;
             delete_index(tab_name, old.get(), rid, context);
             rfh->update_record(rid, rec.data, context);
             insert_index(tab_name, &rec, rid, context);
         }
     }
     //释放所有锁
-    auto lock_set = txn->get_lock_set();
-    for(auto i : *lock_set){
+    for(auto i : *txn->lock_set_){
         lock_manager_->unlock(txn, i);
     }
     //释放事务相关资源，eg.锁集
@@ -188,8 +215,13 @@ void TransactionManager::abort(Context * context, LogManager *log_manager) {
     // 4. 把事务日志刷入磁盘中
     auto *log = new AbortLogRecord(txn->get_transaction_id());
     log->prev_lsn_ = txn->get_prev_lsn();
-    log_manager->add_log_to_buffer(log);
+    if(context->output_ellipsis_){
+        context->log_mgr_->add_log_to_buffer_load(log);
+    }else{
+        context->log_mgr_->add_log_to_buffer(log);
+    }
     txn->set_prev_lsn(log->lsn_);
+    delete log;
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
 }

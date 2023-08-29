@@ -290,7 +290,7 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
         index_log->prev_lsn_ = context->txn_->get_prev_lsn();
         context->log_mgr_->add_log_to_buffer_load(index_log);
         context->txn_->set_prev_lsn(index_log->lsn_);
-
+        delete index_log;
         auto result = ih->insert_entry(key, rid_, context->txn_);
         if (!result.second) {
             //说明不满足唯一性，插入失败，需要rollback
@@ -298,6 +298,7 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
             break;
         }
         scan_->next();
+        delete[] key;
     }
     if (is_fail) {
         drop_index(tab_name, col_names, context);
@@ -418,9 +419,9 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
     assert(fhs_.count(tab_name));
     auto rfh = fhs_[tab_name].get();
     auto &tab_info = db_.get_table(tab_name);
-    const std::streamsize buffer_size = 1024 * 1024;
-    char* buffer = new char[buffer_size];
-    ifs.rdbuf()->pubsetbuf(buffer,buffer_size);
+//    const std::streamsize buffer_size = 1024 * 1024;
+//    char* buffer = new char[buffer_size];
+//    ifs.rdbuf()->pubsetbuf(buffer,buffer_size);
     getline(ifs, input);// 读入表头
     while (getline(ifs, input)) {
         RmRecord rec(rfh->get_file_hdr().record_size);// 数据
@@ -464,12 +465,13 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
             memcpy(rec.data + col.offset, x.raw->data, col.len);
         }
         //实际插入
-        auto rid_ = rfh->insert_record(rec.data, context);
+        auto rid_ = rfh->insert_record(rec.data, nullptr);
         //更新日志-插入
         auto *logRecord = new InsertLogRecord(context->txn_->get_transaction_id(), rec, rid_, tab_name);
         logRecord->prev_lsn_ = context->txn_->get_prev_lsn();
         context->log_mgr_->add_log_to_buffer_load(logRecord);
         context->txn_->set_prev_lsn(logRecord->lsn_);
+        delete logRecord;
         // 更新索引
         for (auto & index : tab_info.indexes) {
             auto ix_name = get_ix_manager()->get_index_name(tab_name, index.cols);
@@ -487,13 +489,14 @@ void SmManager::load_record(const std::string &file_name, const std::string &tab
             index_log->prev_lsn_ = context->txn_->get_prev_lsn();
             context->log_mgr_->add_log_to_buffer_load(index_log);
             context->txn_->set_prev_lsn(index_log->lsn_);
-
+            delete index_log;
             ih->insert_entry(key, rid_, context->txn_);
-            free(key);
+            delete[] key;
         }
         //更新事务
-        auto *wr = new WriteRecord(WType::INSERT_TUPLE, tab_name, rid_, rec);
-        context->txn_->append_write_record(wr);
+//        std::shared_ptr<WriteRecord> wr = std::make_shared<WriteRecord>(WType::INSERT_TUPLE, tab_name, rid_, rec);
+//        context->txn_->append_write_record(wr);
     }
     ifs.close();
+//    delete[] buffer;
 }

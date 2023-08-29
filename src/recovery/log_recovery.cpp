@@ -104,6 +104,8 @@ void RecoveryManager::analyze() {
         }
         off += offset;
     }
+    std::cout << logs.size() << '\n';
+    std::cout << "analyze over\n";
     //清空索引并重建
     for (auto &i: tables) {
         auto &tab = sm_manager_->db_.get_table(i);
@@ -172,6 +174,7 @@ void RecoveryManager::redo() {
             std::cout << "redo error\n";
         }
     }
+    std::cout << "redo over\n";
 }
 
 /**
@@ -179,6 +182,8 @@ void RecoveryManager::redo() {
  */
 void RecoveryManager::undo() {
     rollback(false);
+    std::cout << "undo over\n";
+    std::vector<std::shared_ptr<LogRecord>>().swap(logs);
 }
 
 void RecoveryManager::rollback(bool flag) {
@@ -194,7 +199,7 @@ void RecoveryManager::rollback(bool flag) {
                 try {
                     rfh->delete_record(log->rid_, nullptr);
                 } catch (RMDBError &e) {
-                    std::cout << e.what() << '\n';
+//                    std::cout << e.what() << '\n';
                 }
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<UpdateLogRecord>(logs[now])) {
@@ -205,7 +210,7 @@ void RecoveryManager::rollback(bool flag) {
                 try {
                     rfh->update_record(log->rid_, log->update_value_.data, nullptr);
                 } catch (RMDBError &e) {
-                    std::cout << e.what() << '\n';
+//                    std::cout << e.what() << '\n';
                 }
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<DeleteLogRecord>(logs[now])) {
@@ -216,7 +221,7 @@ void RecoveryManager::rollback(bool flag) {
                 try {
                     rfh->insert_record(log->rid_, log->delete_value_.data);
                 } catch (RMDBError &e) {
-                    std::cout << e.what() << '\n';
+//                    std::cout << e.what() << '\n';
                 }
                 now = log->prev_lsn_;
             } else if (auto log = std::dynamic_pointer_cast<IndexInsertLogRecord>(logs[now])) {
@@ -254,4 +259,5 @@ void RecoveryManager::rollback(bool flag) {
             }
         }
     }
+    std::cout << "roll back over\n";
 }
