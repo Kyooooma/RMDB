@@ -394,7 +394,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
         std::vector<std::string> index_col_names;
         bool index_exist = get_index_cols(x->tab_name, query->conds, index_col_names);
 
-        if (index_exist == false) {  // 该表没有索引
+        if (!index_exist) {  // 该表没有索引
             index_col_names.clear();
             table_scan_executors =
                     std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, x->tab_name, query->conds, index_col_names);
@@ -415,7 +415,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
         std::vector<std::string> index_col_names;
         bool index_exist = get_index_cols(x->tab_name, query->conds, index_col_names);
 
-        if (index_exist == false) {  // 该表没有索引
+        if (!index_exist) {  // 该表没有索引
             index_col_names.clear();
             table_scan_executors =
                     std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, x->tab_name, query->conds, index_col_names);

@@ -79,7 +79,6 @@ public:
             }
         }
         fed_conds_ = conds_;
-        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
     }
 
     std::string getType() override { return "IndexScanExecutor"; };
@@ -87,6 +86,7 @@ public:
     size_t tupleLen() const override { return len_; };
 
     void beginTuple() override {
+        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
         std::string ix_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index_col_names_);
         std::cout << "index_scan::" << ix_name << "\n\n";
         char *key = new char[index_meta_.col_tot_len];

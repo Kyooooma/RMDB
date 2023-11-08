@@ -26,8 +26,8 @@ class LockManager {
     /* 事务的加锁申请 */
     class LockRequest {
     public:
-        LockRequest(txn_id_t txn_id, LockMode lock_mode)
-                : txn_id_(txn_id), lock_mode_(lock_mode), granted_(false) {}
+        LockRequest(txn_id_t txn_id, LockMode lock_mode, bool granted)
+                : txn_id_(txn_id), lock_mode_(lock_mode), granted_(granted) {}
 
         txn_id_t txn_id_;   // 申请加锁的事务ID
         LockMode lock_mode_;    // 事务申请加锁的类型
@@ -61,9 +61,7 @@ public:
 
     bool unlock(Transaction* txn, LockDataId lock_data_id);
 
-    bool check_loop(Transaction * txn);
-
 private:
     std::mutex latch_;      // 用于锁表的并发
-    std::unordered_map<LockDataId, LockRequestQueue> lock_table_;   // 全局锁表
+    std::unordered_map<LockDataId, std::unique_ptr<LockRequestQueue>> lock_table_;   // 全局锁表
 };

@@ -71,7 +71,7 @@ public:
         context->txn_ = txn_manager->get_transaction(*txn_id_);
         if (context->txn_ == nullptr || context->txn_->get_state() == TransactionState::COMMITTED ||
             context->txn_->get_state() == TransactionState::ABORTED) {
-            context->txn_ = txn_manager->begin(nullptr, context->log_mgr_);
+            context->txn_ = txn_manager->begin(nullptr, context->log_mgr_, nullptr);
             *txn_id_ = context->txn_->get_transaction_id();
             context->txn_->set_txn_mode(false);
         }
@@ -95,7 +95,7 @@ public:
         portal->run(portalStmt, ql_manager.get(), &txn_id, context);
         portal->drop();
         if (!context->txn_->get_txn_mode()) {
-            txn_manager->commit(context->txn_, context->log_mgr_);
+            txn_manager->commit(context->txn_, context->log_mgr_, nullptr);
         }
     };
 };

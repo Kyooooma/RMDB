@@ -41,7 +41,6 @@ public:
         len_ = cols_.back().offset + cols_.back().len;
 
         context_ = context;
-        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
 
         fed_conds_ = conds_;
     }
@@ -55,6 +54,7 @@ public:
      *
      */
     void beginTuple() override {
+        context_->lock_mgr_->lock_shared_on_table(context_->txn_, sm_manager_->fhs_[tab_name_]->GetFd());
         // 构建scan_
         scan_ = std::make_unique<RmScan>(fh_);
         while (!scan_->is_end()) {

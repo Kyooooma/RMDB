@@ -231,9 +231,9 @@ TEST_F(BPlusTreeTests, InsertTest) {
     for (int64_t key = 1; key <= scale; key++) {
         keys.push_back(key);
     }
-    std::random_device rd;
-    std::mt19937 rng(rd());
-    std::shuffle(keys.begin(), keys.end(), rng);
+//    std::random_device rd;
+//    std::mt19937 rng(rd());
+//    std::shuffle(keys.begin(), keys.end(), rng);
 
     const char *index_key;
     for (auto key : keys) {
