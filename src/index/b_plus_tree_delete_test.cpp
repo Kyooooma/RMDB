@@ -323,7 +323,7 @@ class BPlusTreeTests : public ::testing::Test {
 };
 
 /**
- * @brief insert 1~10 and delete 1~9 (will draw pictures)
+ * @brief insert 1~10 and delete 1~9
  * 
  * @note lab2 计分：10 points
  */
@@ -409,7 +409,7 @@ TEST_F(BPlusTreeTests, InsertAndDeleteTest1) {
 }
 
 /**
- * @brief insert 1~10 and delete 1,2,3,4,7,5 (will draw pictures)
+ * @brief insert 1~20 and random delete
  *
  * @note lab2 计分：10 points
  */
@@ -471,13 +471,13 @@ TEST_F(BPlusTreeTests, InsertAndDeleteTest2) {
 }
 
 /**
- * @brief 随机插入和删除多个键值对
+ * @brief 随机插入和删除10000个键值对
  * 
  * @note lab2 计分：20 points
  */
 TEST_F(BPlusTreeTests, LargeScaleTest) {
     const int order = 255;  // 若order太小，而插入数据过多，将会超出缓冲池
-    const int scale = 10;
+    const int scale = 10000;
 
     if (order >= 2 && order <= ih_->file_hdr_->btree_order_) {
         ih_->file_hdr_->btree_order_ = order;

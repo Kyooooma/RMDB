@@ -251,7 +251,14 @@ public:
         if(scan_->is_end()) return true;
         auto rid = scan_->rid();
         auto rec = fh_->get_record(rid, context_);
-        for(int i = 0; i < index_cnt; i++){
+        for(int i = 0; i + 1 < index_cnt; i++){
+            if(!eval_cond(cols_, conds_[i], rec.get())) return true;
+        }
+        for(int i = 0; i < conds_.size(); i++){
+            auto cond = conds_[i];
+            if(cond.lhs_col.tab_name != tab_name_ ||
+               cond.lhs_col.col_name != index_col_names_[index_cnt - 1])
+                continue;
             if(!eval_cond(cols_, conds_[i], rec.get())) return true;
         }
         return false;

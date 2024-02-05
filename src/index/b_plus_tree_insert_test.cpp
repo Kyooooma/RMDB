@@ -216,7 +216,6 @@ class BPlusTreeTests : public ::testing::Test {
 
 /**
  * @brief 插入10个key，范围为1~10，插入的value取key的低32位，使用get_value()函数测试插入的value(即Rid)是否正确
- * 每次插入后都会调用Draw()函数生成一个B+树的图
  * 
  * @note lab2 计分：10 points
  */
@@ -231,9 +230,9 @@ TEST_F(BPlusTreeTests, InsertTest) {
     for (int64_t key = 1; key <= scale; key++) {
         keys.push_back(key);
     }
-//    std::random_device rd;
-//    std::mt19937 rng(rd());
-//    std::shuffle(keys.begin(), keys.end(), rng);
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::shuffle(keys.begin(), keys.end(), rng);
 
     const char *index_key;
     for (auto key : keys) {

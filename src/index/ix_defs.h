@@ -33,7 +33,6 @@ public:
     int col_tot_len_;                   // 索引包含的字段的总长度
     int btree_order_;                   // children per page 每个结点最多可插入的键值对数量
     int keys_size_;                     // keys_size = (btree_order + 1) * col_tot_len 所有键值对总长度
-    // first_leaf初始化之后没有进行修改，只不过是在测试文件中遍历叶子结点的时候用了
     page_id_t first_leaf_;              // 首叶节点对应的页号，在上层IxManager的open函数进行初始化，初始化为root page_no
     page_id_t last_leaf_;               // 尾叶节点对应的页号
     int tot_len_;                       // 记录结构体的整体长度
@@ -129,12 +128,12 @@ public:
 
 class IxPageHdr {
 public:
-    page_id_t next_free_page_no;    // unused
-    page_id_t parent;               // 父亲节点所在页面的叶号
-    int num_key;                    // # current keys (always equals to #child - 1) 已插入的keys数量，key_idx∈[0,num_key)
+    page_id_t next_free_page_no;    // 下一个空闲页
+    page_id_t parent;               // 父亲节点所在页面的页号
+    int num_key;                    // 已插入的keys数量，key_idx∈[0,num_key)
     bool is_leaf;                   // 是否为叶节点
-    page_id_t prev_leaf;            // previous leaf node's page_no, effective only when is_leaf is true
-    page_id_t next_leaf;            // next leaf node's page_no, effective only when is_leaf is true
+    page_id_t prev_leaf;            // 前一个叶子节点
+    page_id_t next_leaf;            // 下一个叶子节点
 };
 
 class Iid {

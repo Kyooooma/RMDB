@@ -308,7 +308,7 @@ TEST_F(BPlusTreeConcurrentTest, InsertScaleTest) {
 
     // 这里调用了insert_entry，并且用thread_num个进程并发插入（并发查找也放进去了）
     LaunchParallelTest(thread_num, InsertHelper, ih_.get(), keys);
-    printf("Insert key 1~%ld finished\n", scale);
+    printf("Insert key 1~%lld finished\n", scale);
 
     int64_t start_key = 1;
     int64_t current_key = start_key;
@@ -345,7 +345,7 @@ TEST_F(BPlusTreeConcurrentTest, MixScaleTest) {
     }
     // 这里调用了insert_entry，并且用thread_num个进程并发插入（包括并发查找）
     LaunchParallelTest(thread_num, InsertHelper, ih_.get(), keys);
-    printf("Insert key 1~%ld finished\n", scale);
+    printf("Insert key 1~%lld finished\n", scale);
 
     // keys to Delete
     std::vector<int64_t> delete_keys;
@@ -353,7 +353,7 @@ TEST_F(BPlusTreeConcurrentTest, MixScaleTest) {
         delete_keys.push_back(key);
     }
     LaunchParallelTest(thread_num, DeleteHelper, ih_.get(), delete_keys);
-    printf("Delete key 1~%ld finished\n", delete_scale);
+    printf("Delete key 1~%lld finished\n", delete_scale);
 
     int64_t start_key = *delete_keys.rbegin() + 1;
     int64_t current_key = start_key;

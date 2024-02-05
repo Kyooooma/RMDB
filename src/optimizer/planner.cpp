@@ -56,6 +56,7 @@ bool Planner::get_index_cols(std::string tab_name, std::vector<Condition> &curr_
             mx = cnt;
             ids = tmp;
             cols = index.cols;
+//            break;
         }
     }
     if(!mx) return false;

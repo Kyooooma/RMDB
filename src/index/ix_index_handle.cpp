@@ -377,7 +377,6 @@ void IxIndexHandle::insert_into_parent(const std::shared_ptr<IxNodeHandle>& old_
  * @return page_id_t 插入到的叶结点的page_no
  */
 std::pair<page_id_t, bool> IxIndexHandle::insert_entry(const char *key, const Rid &value, Transaction* transaction) {
-    // Todo:
     // 1. 查找key值应该插入到哪个叶子节点
     // 2. 在该叶子节点中插入键值对
     // 3. 如果结点已满，分裂结点，并把新结点的相关信息插入父节点
@@ -466,7 +465,6 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction*transaction) {
 
 /**
  * @brief 用于处理合并和重分配的逻辑，用于删除键值对后调用
- *
  * @param node 执行完删除操作的结点
  * @param transaction 事务指针
  * @param root_is_latched 传出参数：根节点是否上锁，用于并发操作
@@ -476,7 +474,6 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction*transaction) {
  * Otherwise, merge(Coalesce).
  */
 bool IxIndexHandle::coalesce_or_redistribute(std::shared_ptr<IxNodeHandle> node, Transaction* transaction, bool *root_is_latched) {
-    // Todo:
     // 1. 判断node结点是否为根节点
     //    1.1 如果是根节点，需要调用AdjustRoot() 函数来进行处理，返回根节点是否需要被删除
     //    1.2 如果不是根节点，并且不需要执行合并或重分配操作，则直接返回false，否则执行2
